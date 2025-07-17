@@ -31,19 +31,16 @@ const getRepairPrices = ai.defineTool(
     })),
   },
   async () => {
-    // Start with the base list of initial prices, keyed by repairType for easy lookup.
-    const pricesMap = new Map<string, RepairPrice>();
-    initialRepairPrices.forEach(price => pricesMap.set(price.repairType, price));
-
-    // Get prices from the cookie, which reflect user's modifications.
     const pricesFromCookie = await getRepairPricesFromCookie();
 
-    // Merge cookie prices over the initial prices.
-    // This allows for updating existing prices by repairType.
-    pricesFromCookie.forEach(price => pricesMap.set(price.repairType, price));
+    // If the cookie has data, use it as the source of truth.
+    // The cookie is updated by the Pricing Configuration page.
+    if (pricesFromCookie.length > 0) {
+      return pricesFromCookie;
+    }
     
-    // Return the consolidated list of unique prices.
-    return Array.from(pricesMap.values());
+    // Otherwise, fall back to the initial default prices.
+    return initialRepairPrices;
   }
 );
 
@@ -181,6 +178,7 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         return output!;
     }
 );
+
 
 
 
