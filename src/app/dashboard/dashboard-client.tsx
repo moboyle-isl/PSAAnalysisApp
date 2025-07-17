@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { cn } from '@/lib/utils';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -608,9 +609,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           })}
         </div>
       )}
-      <ScrollArea className="flex-grow">
-        <div className="relative w-full overflow-auto">
-          <Table className="min-w-max table-fixed">
+      <ScrollArea className="flex-grow border rounded-lg">
+          <Table className="table-fixed">
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 {visibleColumns.map((header) => (
@@ -625,7 +625,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                     <TableCell
                       key={header.key}
                       onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
-                      className={isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : ''}
+                      className={cn(
+                        isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : '',
+                        (header.key === 'fieldNotes' || header.key === 'recommendation') && 'whitespace-pre-wrap'
+                      )}
                     >
                       {renderCellContent(asset, header.key)}
                     </TableCell>
@@ -634,7 +637,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               ))}
             </TableBody>
           </Table>
-        </div>
       </ScrollArea>
     </div>
   );
