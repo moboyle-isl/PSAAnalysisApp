@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus, Trash } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -48,6 +48,17 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -66,9 +77,9 @@ type AssetWithRecommendation = Asset & {
 };
 
 type Column = {
-  key: keyof AssetWithRecommendation;
+  key: keyof AssetWithRecommendation | 'actions';
   label: string;
-  type: 'string' | 'number' | 'enum';
+  type: 'string' | 'number' | 'enum' | 'action';
   options?: string[];
   width?: string;
 };
@@ -93,6 +104,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
     { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
+    { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
 
 const OPERATORS = {
@@ -114,6 +126,7 @@ const OPERATORS = {
     { value: 'equals', label: 'Is' },
     { value: 'not_equals', label: 'Is not' },
   ],
+  action: [],
 };
 
 
@@ -160,6 +173,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [isNewAssetDialogOpen, setIsNewAssetDialogOpen] = useState(false);
+  const [assetToDelete, setAssetToDelete] = useState<AssetWithRecommendation | null>(null);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -222,6 +236,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     fieldNotes: true,
     recommendation: true,
     estimatedCost: true,
+    actions: true,
   });
 
   const [filters, setFilters] = useState<Filter[]>([]);
@@ -236,7 +251,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     if (currentFilter.column && currentFilter.operator && currentFilter.value !== undefined && currentFilter.value !== '') {
       const newFilter: Filter = {
         id: `filter-${Date.now()}`,
-        column: currentFilter.column.key,
+        column: currentFilter.column.key as keyof AssetWithRecommendation,
         operator: currentFilter.operator,
         value: currentFilter.column.type === 'number' ? Number(currentFilter.value) : currentFilter.value,
       };
@@ -364,6 +379,15 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     form.reset();
   }
 
+  const handleDeleteAsset = (assetId: string) => {
+    setAssets(prev => prev.filter(asset => asset.assetId !== assetId));
+    toast({
+        title: "Asset Deleted",
+        description: `Asset ${assetId} has been successfully deleted.`,
+    });
+    setAssetToDelete(null);
+  };
+
 
   const handleValueChange = (
     assetId: string,
@@ -393,10 +417,41 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       });
   };
 
-  const renderCellContent = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
+  const renderCellContent = (asset: AssetWithRecommendation, key: Column['key']) => {
     const cellId = `${asset.assetId}-${key}`;
     const isEditing = editingCell === cellId;
-    const value = asset[key];
+
+    if (key === 'actions') {
+      return (
+        <div className="flex items-center justify-end gap-2">
+            <AlertDialog open={assetToDelete?.assetId === asset.assetId} onOpenChange={(isOpen) => !isOpen && setAssetToDelete(null)}>
+                <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setAssetToDelete(asset)}>
+                        <Trash className="h-4 w-4" />
+                        <span className="sr-only">Delete Asset</span>
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete asset{' '}
+                        <span className="font-bold">{assetToDelete?.assetId}</span>.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => handleDeleteAsset(assetToDelete!.assetId)}>
+                        Yes, delete
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
+      );
+    }
+    
+    const value = asset[key as keyof AssetWithRecommendation];
 
     if (isEditing) {
       if (key === 'septicSystemType') {
@@ -404,7 +459,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key, newValue);
+              handleValueChange(asset.assetId, key as keyof Asset, newValue);
               setEditingCell(null);
             }}
           >
@@ -444,7 +499,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key, newValue);
+              handleValueChange(asset.assetId, key as keyof Asset, newValue);
               setEditingCell(null);
             }}
           >
@@ -532,8 +587,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     return <span className="truncate">{String(value ?? '')}</span>;
   };
 
-  const isCellEditable = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
-    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost') return false;
+  const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
+    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost' || key === 'actions') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
   }
@@ -818,7 +873,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                         <SelectValue placeholder="Select a column" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ALL_COLUMNS.filter(c => c.key !== 'assetId').map(col => (
+                        {ALL_COLUMNS.filter(c => c.type !== 'action' && c.key !== 'assetId').map(col => (
                           <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
                         ))}
                       </SelectContent>
@@ -884,7 +939,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           <span className="text-sm font-medium">Active Filters:</span>
           {filters.map(filter => {
              const column = ALL_COLUMNS.find(c => c.key === filter.column);
-             const operator = OPERATORS[column!.type].find(o => o.value === filter.operator);
+             if (!column) return null;
+             const operator = OPERATORS[column.type as keyof typeof OPERATORS]?.find(o => o.value === filter.operator);
              return (
               <Badge key={filter.id} variant="secondary" className="pl-2 pr-1">
                 {column?.label} {operator?.label.toLowerCase()} "{filter.value}"
@@ -939,3 +995,5 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
+
+    
