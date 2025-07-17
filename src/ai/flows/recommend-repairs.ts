@@ -112,6 +112,8 @@ const allAssetsPrompt = ai.definePrompt({
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
   prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
 
+You MUST pay close attention to the 'fieldNotes' for each asset. These notes contain crucial observations from on-site technicians and should be heavily weighted in your analysis. If the field notes describe a specific problem (e.g., "damaged lid", "visible roots", "minor cracks on cover"), you must recommend a repair for that specific issue, even if the numerical condition scores seem acceptable.
+
 You are given a list of available repair types and their costs. Do not invent prices.
 
 Available Repairs and Prices:
@@ -124,8 +126,8 @@ Available Repairs and Prices:
 User-Defined Rules: {{{userDefinedRules}}}
 
 Analyze the following assets and provide a specific repair or replacement recommendation for each one.
-- For each asset, determine the most appropriate repair.
-- The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank").
+- For each asset, determine the most appropriate repair by synthesizing the numerical data and the qualitative field notes.
+- The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank", "Replace damaged cover").
 - If a repair is needed, set 'recommendedRepairType' to the name of the repair.
 - Check if the 'recommendedRepairType' exists in the provided price list.
 - If it exists, calculate the 'estimatedCost' based on the unit prices and set 'needsPrice' to false.
