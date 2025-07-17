@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus, Trash } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -69,6 +69,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -135,6 +136,11 @@ type Filter = {
   column: keyof AssetWithRecommendation;
   operator: string;
   value: string | number;
+};
+
+type SortConfig = {
+  key: keyof AssetWithRecommendation;
+  direction: 'ascending' | 'descending';
 };
 
 const newAssetSchema = z.object({
@@ -243,6 +249,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<{column?: Column, operator?: string, value?: string}>({});
   
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
+  const [currentSort, setCurrentSort] = useState<{key: string, direction: 'ascending' | 'descending'}>({ key: 'assetId', direction: 'ascending' });
+
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
   );
@@ -265,49 +275,75 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     setFilters(filters.filter(f => f.id !== id));
   };
   
-  const filteredAssets = useMemo(() => {
+  const processedAssets = useMemo(() => {
     if (!isClient) {
       return []; // Return empty array on server to avoid hydration mismatch
     }
-    if (filters.length === 0) {
-      return assets;
+    
+    let assetsToProcess = [...assets];
+    
+    // Filtering
+    if (filters.length > 0) {
+        assetsToProcess = assetsToProcess.filter(asset => {
+          return filters.every(filter => {
+            const assetValue = asset[filter.column];
+            if (assetValue === undefined || assetValue === null) return false;
+            
+            const columnDef = ALL_COLUMNS.find(c => c.key === filter.column);
+            
+            switch (columnDef?.type) {
+              case 'string':
+              case 'enum':
+                const strValue = String(assetValue).toLowerCase();
+                const filterStrValue = String(filter.value).toLowerCase();
+                if (filter.operator === 'contains') return strValue.includes(filterStrValue);
+                if (filter.operator === 'equals') return strValue === filterStrValue;
+                if (filter.operator === 'not_contains') return !strValue.includes(filterStrValue);
+                if (filter.operator === 'not_equals') return strValue !== filterStrValue;
+                break;
+              case 'number':
+                const numValue = Number(assetValue);
+                const filterNumValue = Number(filter.value);
+                if (filter.operator === 'equals') return numValue === filterNumValue;
+                if (filter.operator === 'not_equals') return numValue !== filterNumValue;
+                if (filter.operator === 'gt') return numValue > numValue;
+                if (filter.operator === 'gte') return numValue >= filterNumValue;
+                if (filter.operator === 'lt') return numValue < filterNumValue;
+                if (filter.operator === 'lte') return numValue <= filterNumValue;
+                break;
+            }
+            return true;
+          });
+        });
     }
-    return assets.filter(asset => {
-      return filters.every(filter => {
-        const assetValue = asset[filter.column];
-        if (assetValue === undefined || assetValue === null) return false;
-        
-        const columnDef = ALL_COLUMNS.find(c => c.key === filter.column);
-        
-        switch (columnDef?.type) {
-          case 'string':
-          case 'enum':
-            const strValue = String(assetValue).toLowerCase();
-            const filterStrValue = String(filter.value).toLowerCase();
-            if (filter.operator === 'contains') return strValue.includes(filterStrValue);
-            if (filter.operator === 'equals') return strValue === filterStrValue;
-            if (filter.operator === 'not_contains') return !strValue.includes(filterStrValue);
-            if (filter.operator === 'not_equals') return strValue !== filterStrValue;
-            break;
-          case 'number':
-            const numValue = Number(assetValue);
-            const filterNumValue = Number(filter.value);
-            if (filter.operator === 'equals') return numValue === filterNumValue;
-            if (filter.operator === 'not_equals') return numValue !== filterNumValue;
-            if (filter.operator === 'gt') return numValue > numValue;
-            if (filter.operator === 'gte') return numValue >= filterNumValue;
-            if (filter.operator === 'lt') return numValue < filterNumValue;
-            if (filter.operator === 'lte') return numValue <= filterNumValue;
-            break;
-        }
-        return true;
-      });
-    });
-  }, [isClient, assets, filters]);
+
+    // Sorting
+    if (sortConfig) {
+        assetsToProcess.sort((a, b) => {
+            const aValue = a[sortConfig.key];
+            const bValue = b[sortConfig.key];
+
+            if (aValue === null || aValue === undefined) return 1;
+            if (bValue === null || bValue === undefined) return -1;
+            
+            let comparison = 0;
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+                comparison = aValue - bValue;
+            } else {
+                comparison = String(aValue).localeCompare(String(bValue));
+            }
+
+            return sortConfig.direction === 'ascending' ? comparison : -comparison;
+        });
+    }
+
+
+    return assetsToProcess;
+  }, [isClient, assets, filters, sortConfig]);
   
   const totalRepairCost = useMemo(() => {
-    return filteredAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
-  }, [filteredAssets]);
+    return processedAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
+  }, [processedAssets]);
 
 
   const handleRunRecommendations = async () => {
@@ -411,6 +447,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   
   const handleResetData = () => {
     setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
+    setFilters([]);
+    setSortConfig(null);
     toast({
         title: "Data Reset",
         description: "All asset data has been reset to its initial state.",
@@ -619,6 +657,23 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     )
   }
 
+  const handleApplySort = () => {
+    setSortConfig({
+      key: currentSort.key as keyof AssetWithRecommendation,
+      direction: currentSort.direction
+    });
+    setSortPopoverOpen(false);
+  }
+
+  const requestSort = (key: keyof AssetWithRecommendation) => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+
   return (
     <div className="flex flex-col h-full space-y-4">
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -626,7 +681,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
                  {isClient ? (
-                    <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
+                    <span className="text-muted-foreground">{processedAssets.length} / {assets.length}</span>
                 ) : (
                     <Skeleton className="h-4 w-12" />
                 )}
@@ -634,7 +689,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             <CardContent>
                  {isClient ? (
                     <div className="text-2xl font-bold">
-                        {filteredAssets.length}
+                        {processedAssets.length}
                     </div>
                 ) : (
                     <Skeleton className="h-8 w-1/4" />
@@ -902,6 +957,56 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               </div>
             </PopoverContent>
           </Popover>
+          <Popover open={sortPopoverOpen} onOpenChange={setSortPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" disabled={!isClient}>
+                <ArrowUpDown className="mr-2 h-4 w-4" />
+                Sort
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Sort By</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Select a column and direction to sort the data.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Column</Label>
+                   <Select value={currentSort.key} onValueChange={(val) => setCurrentSort(s => ({...s, key: val}))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ALL_COLUMNS.filter(c => c.type !== 'action').map(col => (
+                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                 <div className="grid gap-2">
+                    <Label>Direction</Label>
+                    <RadioGroup 
+                        defaultValue={currentSort.direction} 
+                        onValueChange={(val: 'ascending' | 'descending') => setCurrentSort(s => ({ ...s, direction: val }))}
+                        className="flex gap-4"
+                    >
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="ascending" id="ascending" />
+                            <Label htmlFor="ascending">Ascending</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="descending" id="descending" />
+                            <Label htmlFor="descending">Descending</Label>
+                        </div>
+                    </RadioGroup>
+                 </div>
+                <Button onClick={handleApplySort}>Apply Sort</Button>
+                {sortConfig && <Button variant="ghost" onClick={() => setSortConfig(null)}>Clear Sort</Button>}
+              </div>
+            </PopoverContent>
+          </Popover>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" disabled={!isClient}>
@@ -934,36 +1039,49 @@ export function DashboardClient({ data }: { data: Asset[] }) {
            </Button>
         </div>
       </div>
-      {filters.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium">Active Filters:</span>
-          {filters.map(filter => {
-             const column = ALL_COLUMNS.find(c => c.key === filter.column);
-             if (!column) return null;
-             const operator = OPERATORS[column.type as keyof typeof OPERATORS]?.find(o => o.value === filter.operator);
-             return (
-              <Badge key={filter.id} variant="secondary" className="pl-2 pr-1">
-                {column?.label} {operator?.label.toLowerCase()} "{filter.value}"
-                <button onClick={() => removeFilter(filter.id)} className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20">
-                  <X className="h-3 w-3" />
-                  <span className="sr-only">Remove filter</span>
-                </button>
-              </Badge>
-            )
-          })}
-        </div>
-      )}
+      <div className="flex items-center gap-2 flex-wrap">
+          {filters.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium">Active Filters:</span>
+              {filters.map(filter => {
+                 const column = ALL_COLUMNS.find(c => c.key === filter.column);
+                 if (!column) return null;
+                 const operator = OPERATORS[column.type as keyof typeof OPERATORS]?.find(o => o.value === filter.operator);
+                 return (
+                  <Badge key={filter.id} variant="secondary" className="pl-2 pr-1">
+                    {column?.label} {operator?.label.toLowerCase()} "{filter.value}"
+                    <button onClick={() => removeFilter(filter.id)} className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20">
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Remove filter</span>
+                    </button>
+                  </Badge>
+                )
+              })}
+              <Button variant="ghost" size="icon" onClick={() => setFilters([])} className="h-6 w-6">
+                <X className="h-4 w-4" />
+                <span className="sr-only">Clear all filters</span>
+              </Button>
+            </div>
+          )}
+      </div>
       <ScrollArea className="flex-grow border rounded-lg">
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               {visibleColumns.map((header) => (
-                <TableHead key={header.key} style={{ width: header.width }}>{header.label}</TableHead>
+                <TableHead key={header.key} style={{ width: header.width }} className={header.type !== 'action' ? 'cursor-pointer' : ''} onClick={() => header.type !== 'action' && requestSort(header.key as keyof AssetWithRecommendation)}>
+                  <div className="flex items-center gap-2">
+                    {header.label}
+                    {sortConfig?.key === header.key && (
+                       sortConfig.direction === 'ascending' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                    )}
+                  </div>
+                </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isClient ? filteredAssets.map((asset) => (
+            {isClient ? processedAssets.map((asset) => (
               <TableRow key={asset.assetId}>
                 {visibleColumns.map((header) => (
                   <TableCell
@@ -995,5 +1113,3 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
-
-    
