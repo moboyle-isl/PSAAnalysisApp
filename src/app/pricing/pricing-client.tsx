@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import type { RepairPrice } from '@/lib/data';
+import { initialRepairPrices } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -25,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-function getInitialPrices(defaultPrices: RepairPrice[]): RepairPrice[] {
+function getInitialPrices(): RepairPrice[] {
   const cookie = Cookies.get('repairPrices');
   if (cookie) {
     try {
@@ -37,11 +38,11 @@ function getInitialPrices(defaultPrices: RepairPrice[]): RepairPrice[] {
       console.error('Failed to parse repairPrices cookie, falling back to default data.', e);
     }
   }
-  return defaultPrices;
+  return initialRepairPrices;
 }
 
-export function PricingClient({ initialPrices }: { initialPrices: RepairPrice[] }) {
-  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices(initialPrices));
+export function PricingClient() {
+  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
 
@@ -66,8 +67,8 @@ export function PricingClient({ initialPrices }: { initialPrices: RepairPrice[] 
       updatedPrices = [...prices, newPrice];
     }
     updatePrices(updatedPrices);
-    setIsDialogOpen(false);
     setEditingPrice(null);
+    setIsDialogOpen(false);
   };
 
   const handleDeletePrice = (id: string) => {
