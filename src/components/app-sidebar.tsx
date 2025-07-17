@@ -16,6 +16,7 @@ import {
   History,
   DollarSign,
   Droplets,
+  ListChecks,
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -38,6 +39,11 @@ export function AppSidebar() {
       href: '/pricing',
       label: 'Price Configuration',
       icon: DollarSign,
+    },
+    {
+      href: '/rules',
+      label: 'Rule Configuration',
+      icon: ListChecks,
     },
   ];
 
