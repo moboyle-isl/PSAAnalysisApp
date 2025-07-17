@@ -31,12 +31,19 @@ const getRepairPrices = ai.defineTool(
     })),
   },
   async () => {
-    const prices = await getRepairPricesFromCookie();
-    if (prices && prices.length > 0) {
-      return prices;
-    }
-    // Fallback to initial data if cookie is not available or empty
-    return initialRepairPrices;
+    // Start with the base list of initial prices.
+    const pricesMap = new Map<string, RepairPrice>();
+    initialRepairPrices.forEach(price => pricesMap.set(price.id, price));
+
+    // Get prices from the cookie, which reflect user's modifications.
+    const pricesFromCookie = await getRepairPricesFromCookie();
+
+    // Merge cookie prices over the initial prices.
+    // This allows for updating existing prices and adding new ones.
+    pricesFromCookie.forEach(price => pricesMap.set(price.id, price));
+    
+    // Return the consolidated list.
+    return Array.from(pricesMap.values());
   }
 );
 
@@ -174,3 +181,4 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         return output!;
     }
 );
+
