@@ -1,9 +1,9 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
-import { useLocalStorage } from '@/hooks/use-local-storage';
 import {
   Table,
   TableHeader,
@@ -27,14 +27,40 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
 import Cookies from 'js-cookie';
 
+function getInitialPrices(): RepairPrice[] {
+  const cookie = Cookies.get('repairPrices');
+  if (cookie) {
+    try {
+      const parsed = JSON.parse(cookie);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse repairPrices cookie', e);
+    }
+  }
+  return initialRepairPrices;
+}
+
 export function PricingClient({ data }: { data: RepairPrice[] }) {
-  const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
+  const [prices, setPrices] = useState<RepairPrice[]>(getInitialPrices);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
+
+  useEffect(() => {
+    // Sync with cookie changes from other tabs/windows
+    const handleStorage = () => {
+       setPrices(getInitialPrices());
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const updatePrices = (newPrices: RepairPrice[]) => {
     setPrices(newPrices);
     Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 7 });
+    // Dispatch a custom event to notify other components like the dashboard
+    window.dispatchEvent(new Event('storage'));
   };
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
