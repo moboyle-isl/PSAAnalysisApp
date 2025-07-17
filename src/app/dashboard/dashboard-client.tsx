@@ -57,6 +57,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -251,7 +252,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   
   const filteredAssets = useMemo(() => {
     if (!isClient) {
-      return data;
+      return []; // Return empty array on server to avoid hydration mismatch
     }
     if (filters.length === 0) {
       return assets;
@@ -278,7 +279,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             const filterNumValue = Number(filter.value);
             if (filter.operator === 'equals') return numValue === filterNumValue;
             if (filter.operator === 'not_equals') return numValue !== filterNumValue;
-            if (filter.operator === 'gt') return numValue > filterNumValue;
+            if (filter.operator === 'gt') return numValue > numValue;
             if (filter.operator === 'gte') return numValue >= filterNumValue;
             if (filter.operator === 'lt') return numValue < filterNumValue;
             if (filter.operator === 'lte') return numValue <= filterNumValue;
@@ -287,7 +288,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         return true;
       });
     });
-  }, [isClient, assets, data, filters]);
+  }, [isClient, assets, filters]);
   
   const totalRepairCost = useMemo(() => {
     return filteredAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
@@ -560,12 +561,20 @@ export function DashboardClient({ data }: { data: Asset[] }) {
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
-                <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
+                 {isClient ? (
+                    <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
+                ) : (
+                    <Skeleton className="h-4 w-12" />
+                )}
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">
-                    {filteredAssets.length}
-                </div>
+                 {isClient ? (
+                    <div className="text-2xl font-bold">
+                        {filteredAssets.length}
+                    </div>
+                ) : (
+                    <Skeleton className="h-8 w-1/4" />
+                )}
                  <p className="text-xs text-muted-foreground">
                     Assets matching current filters
                 </p>
@@ -577,9 +586,13 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                <div className="text-2xl font-bold">
-                    ${totalRepairCost.toFixed(2)}
-                </div>
+                {isClient ? (
+                    <div className="text-2xl font-bold">
+                        ${totalRepairCost.toFixed(2)}
+                    </div>
+                ) : (
+                    <Skeleton className="h-8 w-1/2" />
+                )}
                 <p className="text-xs text-muted-foreground">
                     Estimated cost for filtered assets
                 </p>
@@ -885,7 +898,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAssets.map((asset) => (
+            {isClient ? filteredAssets.map((asset) => (
               <TableRow key={asset.assetId}>
                 {visibleColumns.map((header) => (
                   <TableCell
@@ -900,7 +913,17 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                   </TableCell>
                 ))}
               </TableRow>
-            ))}
+            )) : (
+              Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                      {visibleColumns.map(header => (
+                          <TableCell key={header.key}>
+                              <Skeleton className="h-6 w-full" />
+                          </TableCell>
+                      ))}
+                  </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </ScrollArea>
