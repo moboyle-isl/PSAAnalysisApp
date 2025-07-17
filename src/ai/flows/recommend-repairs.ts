@@ -4,13 +4,17 @@
 /**
  * @fileOverview A repair recommendation AI agent.
  *
- * - recommendRepairs - A function that recommends repairs.
+ * - recommendRepairs - A function that recommends repairs for a single asset.
+ * - recommendRepairsForAllAssets - A function that recommends repairs for a list of assets.
  * - RecommendRepairsInput - The input type for the recommendRepairs function.
  * - RecommendRepairsOutput - The return type for the recommendRepairs function.
+ * - RecommendRepairsAllAssetsInput - The input type for the recommendRepairsForAllAssets function.
+ * - RecommendRepairsAllAssetsOutput - The return type for the recommendRepairsForAllAssets function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import type { Asset } from '@/lib/data';
 
 const RecommendRepairsInputSchema = z.object({
   conditionData: z.string().describe('The condition data of the asset.'),
@@ -25,11 +29,53 @@ const RecommendRepairsOutputSchema = z.object({
 });
 export type RecommendRepairsOutput = z.infer<typeof RecommendRepairsOutputSchema>;
 
+const AssetSchema = z.object({
+  assetId: z.string(),
+  address: z.string(),
+  yearInstalled: z.number(),
+  material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
+  setbackFromWaterSource: z.number(),
+  setbackFromHouse: z.number(),
+  tankBuryDepth: z.number(),
+  openingSize: z.number(),
+  aboveGroundCollarHeight: z.number(),
+  septicSystemType: z.enum(['Cistern', 'Septic Tank']),
+  siteCondition: z.number(),
+  coverCondition: z.number(),
+  collarCondition: z.number(),
+  interiorCondition: z.number(),
+  overallCondition: z.number(),
+  fieldNotes: z.string(),
+});
+
+const RecommendRepairsAllAssetsInputSchema = z.object({
+    assets: z.array(AssetSchema),
+    userDefinedRules: z.string().describe('The user-defined rules for repair recommendations.'),
+});
+
+export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllAssetsInputSchema>;
+
+const SingleAssetRecommendationSchema = z.object({
+    assetId: z.string(),
+    recommendations: z.string().describe('The recommended repairs or replacements.'),
+});
+
+const RecommendRepairsAllAssetsOutputSchema = z.object({
+    recommendations: z.array(SingleAssetRecommendationSchema),
+});
+export type RecommendRepairsAllAssetsOutput = z.infer<typeof RecommendRepairsAllAssetsOutputSchema>;
+
+
 export async function recommendRepairs(input: RecommendRepairsInput): Promise<RecommendRepairsOutput> {
   return recommendRepairsFlow(input);
 }
 
-const prompt = ai.definePrompt({
+export async function recommendRepairsForAllAssets(input: RecommendRepairsAllAssetsInput): Promise<RecommendRepairsAllAssetsOutput> {
+    return recommendRepairsForAllAssetsFlow(input);
+}
+
+
+const singleAssetPrompt = ai.definePrompt({
   name: 'recommendRepairsPrompt',
   input: {schema: RecommendRepairsInputSchema},
   output: {schema: RecommendRepairsOutputSchema},
@@ -43,7 +89,48 @@ const recommendRepairsFlow = ai.defineFlow(
     outputSchema: RecommendRepairsOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await singleAssetPrompt(input);
     return output!;
   }
+);
+
+
+const allAssetsPrompt = ai.definePrompt({
+  name: 'recommendRepairsForAllAssetsPrompt',
+  input: { schema: RecommendRepairsAllAssetsInputSchema },
+  output: { schema: RecommendRepairsAllAssetsOutputSchema },
+  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
+
+User-Defined Rules: {{{userDefinedRules}}}
+
+Analyze the following assets and provide a specific repair or replacement recommendation for each one.
+
+Assets:
+{{#each assets}}
+- Asset ID: {{assetId}}
+- Type: {{septicSystemType}}
+- Year Installed: {{yearInstalled}}
+- Material: {{material}}
+- Site Condition: {{siteCondition}}/5
+- Cover Condition: {{coverCondition}}/5
+- Collar Condition: {{collarCondition}}/5
+- Interior Condition: {{interiorCondition}}/5
+- Overall Condition: {{overallCondition}}/5
+- Field Notes: "{{fieldNotes}}"
+{{/each}}
+
+Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema.
+`,
+});
+
+const recommendRepairsForAllAssetsFlow = ai.defineFlow(
+    {
+        name: 'recommendRepairsForAllAssetsFlow',
+        inputSchema: RecommendRepairsAllAssetsInputSchema,
+        outputSchema: RecommendRepairsAllAssetsOutputSchema,
+    },
+    async (input) => {
+        const { output } = await allAssetsPrompt(input);
+        return output!;
+    }
 );

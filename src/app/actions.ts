@@ -6,9 +6,9 @@ import {
   type PredictRemainingLifeOutput,
 } from '@/ai/flows/predict-remaining-life';
 import {
-  recommendRepairs as recommendRepairsFlow,
-  type RecommendRepairsInput,
-  type RecommendRepairsOutput,
+  recommendRepairsForAllAssets as recommendRepairsForAllAssetsFlow,
+  type RecommendRepairsAllAssetsInput,
+  type RecommendRepairsAllAssetsOutput,
 } from '@/ai/flows/recommend-repairs';
 
 export async function predictRemainingLife(
@@ -23,11 +23,11 @@ export async function predictRemainingLife(
   }
 }
 
-export async function recommendRepairs(
-  data: RecommendRepairsInput
-): Promise<RecommendRepairsOutput> {
+export async function recommendRepairsForAllAssets(
+  data: RecommendRepairsAllAssetsInput
+): Promise<RecommendRepairsAllAssetsOutput> {
   try {
-    const result = await recommendRepairsFlow(data);
+    const result = await recommendRepairsForAllAssetsFlow(data);
     return result;
   } catch (error) {
     console.error(error);

@@ -9,7 +9,7 @@ export default function DashboardPage() {
     <div className="flex flex-col h-full">
       <PageHeader
         title="Asset Dashboard"
-        description="View, edit, and analyze asset data."
+        description="View, edit, and analyze asset data with AI-powered recommendations."
       >
         <Button variant="outline">
           <Upload className="mr-2 h-4 w-4" />

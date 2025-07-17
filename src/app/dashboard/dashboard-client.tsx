@@ -20,10 +20,54 @@ import {
 } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Wand2, Loader2 } from 'lucide-react';
+import { recommendRepairsForAllAssets } from '@/app/actions';
+import { useToast } from '@/hooks/use-toast';
+
+type AssetWithRecommendation = Asset & { recommendation?: string };
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useState<Asset[]>(data);
+  const [assets, setAssets] = useState<AssetWithRecommendation[]>(data);
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
+  const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
+
+  const handleRunRecommendations = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await recommendRepairsForAllAssets({
+        assets: assets,
+        userDefinedRules: 'Prioritize repairs that extend life by over 5 years. Replace if repair cost exceeds 60% of new asset cost.',
+      });
+
+      const recommendationsMap = new Map(
+        result.recommendations.map((r) => [r.assetId, r.recommendations])
+      );
+
+      setAssets((prevAssets) =>
+        prevAssets.map((asset) => ({
+          ...asset,
+          recommendation: recommendationsMap.get(asset.assetId) || asset.recommendation || 'No specific recommendation.',
+        }))
+      );
+      toast({
+        title: "Recommendations Generated",
+        description: "AI recommendations have been added for all assets.",
+      });
+
+    } catch (error) {
+      console.error(error);
+       toast({
+        variant: "destructive",
+        title: "An error occurred",
+        description: "Failed to generate recommendations. Please try again.",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
 
   const handleValueChange = (
     assetId: string,
@@ -37,7 +81,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     );
   };
 
-  const renderCellContent = (asset: Asset, key: keyof Asset) => {
+  const renderCellContent = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
     const cellId = `${asset.assetId}-${key}`;
     const isEditing = editingCell === cellId;
     const value = asset[key];
@@ -82,18 +126,18 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           </Select>
         );
       }
-      if (key === 'fieldNotes') {
+      if (key === 'fieldNotes' || key === 'recommendation') {
          return (
           <Textarea
             autoFocus
             defaultValue={value as string}
             onBlur={(e) => {
-              handleValueChange(asset.assetId, key, e.target.value);
+              handleValueChange(asset.assetId, key as keyof Asset, e.target.value);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
-                handleValueChange(asset.assetId, key, e.currentTarget.value);
+                handleValueChange(asset.assetId, key as keyof Asset, e.currentTarget.value);
                 setEditingCell(null);
               }
             }}
@@ -108,13 +152,13 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           defaultValue={value as string | number}
           onBlur={(e) => {
             const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
-            handleValueChange(asset.assetId, key, val);
+            handleValueChange(asset.assetId, key as keyof Asset, val);
             setEditingCell(null);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               const val = typeof value === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value;
-              handleValueChange(asset.assetId, key, val);
+              handleValueChange(asset.assetId, key as keyof Asset, val);
               setEditingCell(null);
             }
           }}
@@ -122,56 +166,69 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         />
       );
     }
-    return <span className="truncate">{String(value)}</span>;
+    return <span className="truncate">{String(value ?? '')}</span>;
   };
 
-  const headers: { key: keyof Asset; label: string }[] = [
-    { key: 'assetId', label: 'Asset ID' },
-    { key: 'address', label: 'Address' },
-    { key: 'yearInstalled', label: 'Year Installed' },
-    { key: 'material', label: 'Material' },
-    { key: 'septicSystemType', label: 'System Type' },
-    { key: 'setbackFromWaterSource', label: 'Setback Water (m)' },
-    { key: 'setbackFromHouse', label: 'Setback House (m)' },
-    { key: 'tankBuryDepth', label: 'Bury Depth (m)' },
-    { key: 'openingSize', label: 'Opening Size (m)' },
-    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)' },
-    { key: 'siteCondition', label: 'Site Condition' },
-    { key: 'coverCondition', label: 'Cover Condition' },
-    { key: 'collarCondition', label: 'Collar Condition' },
-    { key: 'interiorCondition', label: 'Interior Condition' },
-    { key: 'overallCondition', label: 'Overall Condition' },
-    { key: 'fieldNotes', label: 'Field Notes' },
+  const headers: { key: keyof AssetWithRecommendation; label: string, isEditable: boolean }[] = [
+    { key: 'assetId', label: 'Asset ID', isEditable: false },
+    { key: 'address', label: 'Address', isEditable: true },
+    { key: 'yearInstalled', label: 'Year Installed', isEditable: true },
+    { key: 'material', label: 'Material', isEditable: true },
+    { key: 'septicSystemType', label: 'System Type', isEditable: true },
+    { key: 'setbackFromWaterSource', label: 'Setback Water (m)', isEditable: true },
+    { key: 'setbackFromHouse', label: 'Setback House (m)', isEditable: true },
+    { key: 'tankBuryDepth', label: 'Bury Depth (m)', isEditable: true },
+    { key: 'openingSize', label: 'Opening Size (m)', isEditable: true },
+    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)', isEditable: true },
+    { key: 'siteCondition', label: 'Site Condition', isEditable: true },
+    { key: 'coverCondition', label: 'Cover Condition', isEditable: true },
+    { key: 'collarCondition', label: 'Collar Condition', isEditable: true },
+    { key: 'interiorCondition', label: 'Interior Condition', isEditable: true },
+    { key: 'overallCondition', label: 'Overall Condition', isEditable: true },
+    { key: 'fieldNotes', label: 'Field Notes', isEditable: true },
+    { key: 'recommendation', label: 'AI Recommendation', isEditable: true },
   ];
 
   return (
-    <ScrollArea className="h-full">
-      <div className="relative w-full overflow-auto">
-        <Table className="min-w-max">
-          <TableHeader className="sticky top-0 bg-card z-10">
-            <TableRow>
-              {headers.map((header) => (
-                <TableHead key={header.key} className="whitespace-nowrap">{header.label}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {assets.map((asset) => (
-              <TableRow key={asset.assetId}>
+    <div className="flex flex-col h-full space-y-4">
+       <div className="flex justify-start">
+         <Button onClick={handleRunRecommendations} disabled={isGenerating}>
+          {isGenerating ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Wand2 className="mr-2 h-4 w-4" />
+          )}
+          Run AI Recommendations
+        </Button>
+      </div>
+      <ScrollArea className="flex-grow">
+        <div className="relative w-full overflow-auto">
+          <Table className="min-w-max">
+            <TableHeader className="sticky top-0 bg-card z-10">
+              <TableRow>
                 {headers.map((header) => (
-                  <TableCell
-                    key={header.key}
-                    onClick={() => header.key !== 'assetId' && setEditingCell(`${asset.assetId}-${header.key}`)}
-                    className={header.key !== 'assetId' ? 'cursor-pointer' : ''}
-                  >
-                    {renderCellContent(asset, header.key)}
-                  </TableCell>
+                  <TableHead key={header.key} className="whitespace-nowrap">{header.label}</TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </ScrollArea>
+            </TableHeader>
+            <TableBody>
+              {assets.map((asset) => (
+                <TableRow key={asset.assetId}>
+                  {headers.map((header) => (
+                    <TableCell
+                      key={header.key}
+                      onClick={() => header.isEditable && setEditingCell(`${asset.assetId}-${header.key}`)}
+                      className={header.isEditable ? 'cursor-pointer' : ''}
+                    >
+                      {renderCellContent(asset, header.key)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </ScrollArea>
+    </div>
   );
 }

@@ -12,7 +12,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import {
   LayoutDashboard,
-  Wrench,
   History,
   DollarSign,
   Droplets,
@@ -28,11 +27,6 @@ export function AppSidebar() {
       href: '/dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-    },
-    {
-      href: '/recommendations',
-      label: 'AI Recommendations',
-      icon: Wrench,
     },
     {
       href: '/predictions',
