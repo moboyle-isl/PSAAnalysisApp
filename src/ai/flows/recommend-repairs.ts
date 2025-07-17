@@ -111,24 +111,25 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules. Your most important task is to prioritize the 'fieldNotes'.
+  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules. Your most important task is to prioritize the 'fieldNotes' and perform intelligent matching against the available repairs.
 
 You MUST follow this logic:
-1.  For each asset, first examine the 'fieldNotes'. This is the most critical piece of information.
-2.  Identify keywords in the 'fieldNotes' describing a problem (e.g., "damaged lid", "cracked cover", "roots", "leaking").
-3.  Search the 'repairPrices' list for a 'repairType' that directly addresses the problem described in the notes. For example, if notes say "cracked lid", you should look for a repair like "Lid Replacement" or "Cover Repair".
-4.  If a matching repair is found in the 'repairPrices' list:
+1.  For each asset, first analyze the 'fieldNotes' in combination with the asset's 'septicSystemType' and 'assetSubType'. This provides critical context.
+2.  Intelligently search the 'repairPrices' list for a 'repairType' that addresses the problem described.
+    - Be flexible with wording. For example, if the notes say "damaged lid" or "cracked cover", you should match it to a repair like "Lid Replacement".
+    - Use the asset's type for context. If an asset is a 'Cistern' and the notes mention "tank replacement", you should match it to a "Replace Cistern" repair if available. Consider "tank" and "cistern" to be synonyms in this context.
+3.  If a reasonably confident match is found in the 'repairPrices' list:
     - Set 'recommendation' to a short summary of that action (e.g., "Replace damaged lid").
     - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
     - Set 'estimatedCost' to the corresponding 'unitPrice'.
     - Set 'needsPrice' to false.
-5.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list:
+4.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list, even with contextual matching:
     - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
-    - Set 'recommendedRepairType' to a new, descriptive name (e.g., "Tank Crack Repair").
+    - Set 'recommendedRepairType' to a new, descriptive name for the repair (e.g., "Tank Crack Repair").
     - You MUST set 'estimatedCost' to 0.
     - You MUST set 'needsPrice' to true.
-6.  If and only if the 'fieldNotes' indicate no problems, then you may consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection.
-7.  If the 'fieldNotes' are clear and condition scores are good, the correct output is "No action needed".
+5.  If and only if the 'fieldNotes' indicate no problems, then you may consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection (e.g., "General Inspection Recommended"). Set 'recommendedRepairType' to "General Inspection", 'estimatedCost' to 0, and 'needsPrice' to true.
+6.  If the 'fieldNotes' are clear (e.g., "OK", "No issues") and condition scores are good, the correct output is to set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0 and 'needsPrice' to false.
 
 Available Repairs and Prices:
 {{#each repairPrices}}
