@@ -22,7 +22,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -33,35 +33,72 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 type AssetWithRecommendation = Asset & { recommendation?: string };
 
 type Column = {
   key: keyof AssetWithRecommendation;
   label: string;
+  type: 'string' | 'number' | 'enum';
+  options?: string[];
 };
 
 const ALL_COLUMNS: Column[] = [
-    { key: 'assetId', label: 'Asset ID' },
-    { key: 'address', label: 'Address' },
-    { key: 'yearInstalled', label: 'Year Installed' },
-    { key: 'material', label: 'Material' },
-    { key: 'septicSystemType', label: 'System Type' },
-    { key: 'assetSubType', label: 'Sub-Type' },
-    { key: 'setbackFromWaterSource', label: 'Setback Water (m)' },
-    { key: 'setbackFromHouse', label: 'Setback House (m)' },
-    { key: 'tankBuryDepth', label: 'Bury Depth (m)' },
-    { key: 'openingSize', label: 'Opening Size (m)' },
-    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)' },
-    { key: 'siteCondition', label: 'Site Condition' },
-    { key: 'coverCondition', label: 'Cover Condition' },
-    { key: 'collarCondition', label: 'Collar Condition' },
-    { key: 'interiorCondition', label: 'Interior Condition' },
-    { key: 'overallCondition', label: 'Overall Condition' },
-    { key: 'fieldNotes', label: 'Field Notes' },
-    { key: 'recommendation', label: 'AI Recommendation' },
+    { key: 'assetId', label: 'Asset ID', type: 'string' },
+    { key: 'address', label: 'Address', type: 'string' },
+    { key: 'yearInstalled', label: 'Year Installed', type: 'number' },
+    { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
+    { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
+    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'] },
+    { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number' },
+    { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number' },
+    { key: 'tankBuryDepth', label: 'Bury Depth (m)', type: 'number' },
+    { key: 'openingSize', label: 'Opening Size (m)', type: 'number' },
+    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)', type: 'number' },
+    { key: 'siteCondition', label: 'Site Condition', type: 'number' },
+    { key: 'coverCondition', label: 'Cover Condition', type: 'number' },
+    { key: 'collarCondition', label: 'Collar Condition', type: 'number' },
+    { key: 'interiorCondition', label: 'Interior Condition', type: 'number' },
+    { key: 'overallCondition', label: 'Overall Condition', type: 'number' },
+    { key: 'fieldNotes', label: 'Field Notes', type: 'string' },
+    { key: 'recommendation', label: 'AI Recommendation', type: 'string' },
 ];
+
+const OPERATORS = {
+  string: [
+    { value: 'contains', label: 'Contains' },
+    { value: 'equals', label: 'Equals' },
+    { value: 'not_contains', label: 'Does not contain' },
+    { value: 'not_equals', label: 'Does not equal' },
+  ],
+  number: [
+    { value: 'equals', label: '=' },
+    { value: 'not_equals', label: '!=' },
+    { value: 'gt', label: '>' },
+    { value: 'gte', label: '>=' },
+    { value: 'lt', label: '<' },
+    { value: 'lte', label: '<=' },
+  ],
+  enum: [
+    { value: 'equals', label: 'Is' },
+    { value: 'not_equals', label: 'Is not' },
+  ],
+};
+
+
+type Filter = {
+  id: string;
+  column: keyof AssetWithRecommendation;
+  operator: string;
+  value: string | number;
+};
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
@@ -70,7 +107,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const [columnVisibility, setColumnVisibility] = useState<
-    Record<keyof AssetWithRecommendation, boolean>
+    Record<string, boolean>
   >({
     assetId: true,
     address: true,
@@ -92,20 +129,69 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     recommendation: true,
   });
 
-  const [systemTypeFilter, setSystemTypeFilter] = useState('all');
-  const [materialFilter, setMaterialFilter] = useState('all');
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
+  const [currentFilter, setCurrentFilter] = useState<{column?: Column, operator?: string, value?: string}>({});
 
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
   );
-
+  
+  const handleAddFilter = () => {
+    if (currentFilter.column && currentFilter.operator && currentFilter.value) {
+      const newFilter: Filter = {
+        id: `filter-${Date.now()}`,
+        column: currentFilter.column.key,
+        operator: currentFilter.operator,
+        value: currentFilter.column.type === 'number' ? Number(currentFilter.value) : currentFilter.value,
+      };
+      setFilters([...filters, newFilter]);
+      setCurrentFilter({});
+      setFilterPopoverOpen(false);
+    }
+  };
+  
+  const removeFilter = (id: string) => {
+    setFilters(filters.filter(f => f.id !== id));
+  };
+  
   const filteredAssets = useMemo(() => {
+    if (filters.length === 0) {
+      return assets;
+    }
     return assets.filter(asset => {
-      const systemTypeMatch = systemTypeFilter === 'all' || asset.septicSystemType === systemTypeFilter;
-      const materialMatch = materialFilter === 'all' || asset.material === materialFilter;
-      return systemTypeMatch && materialMatch;
+      return filters.every(filter => {
+        const assetValue = asset[filter.column];
+        if (assetValue === undefined || assetValue === null) return false;
+        
+        const columnDef = ALL_COLUMNS.find(c => c.key === filter.column);
+        
+        switch (columnDef?.type) {
+          case 'string':
+          case 'enum':
+            const strValue = String(assetValue).toLowerCase();
+            const filterStrValue = String(filter.value).toLowerCase();
+            if (filter.operator === 'contains') return strValue.includes(filterStrValue);
+            if (filter.operator === 'equals') return strValue === filterStrValue;
+            if (filter.operator === 'not_contains') return !strValue.includes(filterStrValue);
+            if (filter.operator === 'not_equals') return strValue !== filterStrValue;
+            break;
+          case 'number':
+            const numValue = Number(assetValue);
+            const filterNumValue = Number(filter.value);
+            if (filter.operator === 'equals') return numValue === filterNumValue;
+            if (filter.operator === 'not_equals') return numValue !== filterNumValue;
+            if (filter.operator === 'gt') return numValue > filterNumValue;
+            if (filter.operator === 'gte') return numValue >= filterNumValue;
+            if (filter.operator === 'lt') return numValue < filterNumValue;
+            if (filter.operator === 'lte') return numValue <= filterNumValue;
+            break;
+        }
+        return true;
+      });
     });
-  }, [assets, systemTypeFilter, materialFilter]);
+  }, [assets, filters]);
+
 
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
@@ -277,9 +363,35 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
-    if (key === 'assetId') return false;
+    if (key === 'assetId' || key === 'recommendation') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
+  }
+  
+  const renderFilterValueInput = () => {
+    if (!currentFilter.column) return null;
+    
+    if (currentFilter.column.type === 'enum') {
+      return (
+        <Select value={currentFilter.value} onValueChange={(val) => setCurrentFilter(f => ({ ...f, value: val }))}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select value..."/>
+          </SelectTrigger>
+          <SelectContent>
+            {currentFilter.column.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      )
+    }
+
+    return (
+       <Input 
+         type={currentFilter.column.type === 'number' ? 'number' : 'text'}
+         placeholder="Enter value..."
+         value={currentFilter.value || ''}
+         onChange={(e) => setCurrentFilter(f => ({ ...f, value: e.target.value }))}
+       />
+    )
   }
 
   return (
@@ -296,33 +408,58 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           </Button>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="system-type-filter" className="text-sm font-medium">System Type</Label>
-            <Select value={systemTypeFilter} onValueChange={setSystemTypeFilter}>
-              <SelectTrigger id="system-type-filter" className="w-[180px]">
-                <SelectValue placeholder="Filter by type..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Cistern">Cistern</SelectItem>
-                <SelectItem value="Septic Tank">Septic Tank</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Label htmlFor="material-filter" className="text-sm font-medium">Material</Label>
-            <Select value={materialFilter} onValueChange={setMaterialFilter}>
-              <SelectTrigger id="material-filter" className="w-[180px]">
-                <SelectValue placeholder="Filter by material..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="Concrete">Concrete</SelectItem>
-                <SelectItem value="Polyethylene">Polyethylene</SelectItem>
-                <SelectItem value="Fibreglass">Fibreglass</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline">
+                <FilterIcon className="mr-2 h-4 w-4" />
+                Filter
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Add Filter</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Create a filter to refine the data.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Column</Label>
+                   <Select onValueChange={(val) => setCurrentFilter({ column: ALL_COLUMNS.find(c => c.key === val) })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ALL_COLUMNS.filter(c => c.key !== 'assetId').map(col => (
+                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                {currentFilter.column && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Operator</Label>
+                      <Select value={currentFilter.operator} onValueChange={(val) => setCurrentFilter(f => ({...f, operator: val}))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an operator"/>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {OPERATORS[currentFilter.column!.type].map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Value</Label>
+                      {renderFilterValueInput()}
+                    </div>
+                  </>
+                )}
+                <Button onClick={handleAddFilter} disabled={!currentFilter.column || !currentFilter.operator || !currentFilter.value}>Add Filter</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -349,6 +486,24 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           </DropdownMenu>
         </div>
       </div>
+      {filters.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">Active Filters:</span>
+          {filters.map(filter => {
+             const column = ALL_COLUMNS.find(c => c.key === filter.column);
+             const operator = OPERATORS[column!.type].find(o => o.value === filter.operator);
+             return (
+              <Badge key={filter.id} variant="secondary" className="pl-2 pr-1">
+                {column?.label} {operator?.label.toLowerCase()} "{filter.value}"
+                <button onClick={() => removeFilter(filter.id)} className="ml-1 rounded-full p-0.5 hover:bg-muted-foreground/20">
+                  <X className="h-3 w-3" />
+                  <span className="sr-only">Remove filter</span>
+                </button>
+              </Badge>
+            )
+          })}
+        </div>
+      )}
       <ScrollArea className="flex-grow">
         <div className="relative w-full overflow-auto">
           <Table className="min-w-max">
@@ -380,5 +535,3 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
-
-    
