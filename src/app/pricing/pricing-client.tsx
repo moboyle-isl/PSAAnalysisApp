@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { RepairPrice } from '@/lib/data';
 import {
   Table,
@@ -34,7 +34,7 @@ function getInitialPrices(defaultPrices: RepairPrice[]): RepairPrice[] {
         return parsed;
       }
     } catch (e) {
-      console.error('Failed to parse repairPrices cookie, falling back to initial data.', e);
+      console.error('Failed to parse repairPrices cookie, falling back to default data.', e);
     }
   }
   return defaultPrices;
