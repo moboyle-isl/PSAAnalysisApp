@@ -115,39 +115,39 @@ const allAssetsPrompt = ai.definePrompt({
 
 You MUST follow this logic precisely for each asset:
 1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
-    - For each asset, check if its data matches any of the user-defined rules provided below.
+    - For each asset, check if its data matches any of the user-defined rules provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
     - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
     - When a rule matches:
         - Set 'recommendation' to the text provided in the rule.
         - Set 'recommendedRepairType' to the SAME text.
-        - Search the 'Available Repairs and Prices' list for a 'repairType' that exactly matches the recommendation text.
+        - Search the 'Available Repairs and Prices' list for a 'repairType' that exactly matches the recommendation text (case-insensitive).
         - If you find an exact match, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
         - If you DO NOT find an exact match, set 'estimatedCost' to 0 and 'needsPrice' to true.
     - Once a rule matches, STOP further analysis for that asset and move to the next one.
 
 2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no rule applies).**
-    - If no user rule matches an asset, then analyze its 'fieldNotes' and other properties.
+    - If no user rule matches an asset, then analyze its 'Field Notes' and other properties.
     - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
     - If a confident match is found:
         - Set 'recommendation' to a short summary (e.g., "Replace damaged lid").
         - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
         - Set 'estimatedCost' to the corresponding 'unitPrice'.
         - Set 'needsPrice' to false.
-    - If 'fieldNotes' describe a problem but you CANNOT find a matching repair:
+    - If 'Field Notes' describe a problem but you CANNOT find a matching repair:
         - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
         - Set 'recommendedRepairType' to a new, descriptive name (e.g., "Tank Crack Repair").
         - Set 'estimatedCost' to 0.
         - Set 'needsPrice' to true.
 
 3.  **PRIORITY 3: GENERAL INSPECTION.**
-    - If no rules apply and 'fieldNotes' are empty or non-specific (e.g., "OK"), then look at the condition scores.
+    - If no rules apply and 'Field Notes' are empty or non-specific (e.g., "OK"), then look at the condition scores.
     - If any condition score is 3 or less, recommend a general inspection.
     - Set 'recommendation' to "General Inspection Recommended".
     - Set 'recommendedRepairType' to "General Inspection".
     - Set 'estimatedCost' to 0 and 'needsPrice' to true.
 
 4.  **PRIORITY 4: NO ACTION NEEDED.**
-    - If no rules apply, 'fieldNotes' are clear (e.g., "OK", "No issues"), and condition scores are good (4 or 5), then no action is needed.
+    - If no rules apply, 'Field Notes' are clear (e.g., "OK", "No issues"), and condition scores are good (4 or 5), then no action is needed.
     - Set 'recommendation' to "No action needed".
     - Set 'recommendedRepairType' to "None".
     - Set 'estimatedCost' to 0 and 'needsPrice' to false.
