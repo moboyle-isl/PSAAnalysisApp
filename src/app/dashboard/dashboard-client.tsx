@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Asset } from '@/lib/data';
 import { initialAssets } from '@/lib/data';
 import {
@@ -109,7 +109,7 @@ type Filter = {
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', data.map(d => ({ ...d, estimatedCost: 0 })));
+  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -140,13 +140,22 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const [filters, setFilters] = useState<Filter[]>([]);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<{column?: Column, operator?: string, value?: string}>({});
+  
+  // This effect ensures that if the initial data from props changes (e.g. on a hard refresh with new server data),
+  // we check if we should re-initialize the localStorage data. We only do this if there's no data in localStorage yet.
+  useEffect(() => {
+    const storedData = localStorage.getItem('assets');
+    if (!storedData) {
+      setAssets(data.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
+    }
+  }, [data, setAssets]);
 
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
   );
   
   const handleAddFilter = () => {
-    if (currentFilter.column && currentFilter.operator && currentFilter.value) {
+    if (currentFilter.column && currentFilter.operator && currentFilter.value !== undefined && currentFilter.value !== '') {
       const newFilter: Filter = {
         id: `filter-${Date.now()}`,
         column: currentFilter.column.key,
@@ -515,7 +524,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                     </div>
                   </>
                 )}
-                <Button onClick={handleAddFilter} disabled={!currentFilter.column || !currentFilter.operator || !currentFilter.value}>Add Filter</Button>
+                <Button onClick={handleAddFilter} disabled={!currentFilter.column || !currentFilter.operator || currentFilter.value === undefined || currentFilter.value === ''}>Add Filter</Button>
               </div>
             </PopoverContent>
           </Popover>
@@ -599,5 +608,3 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
-
-    
