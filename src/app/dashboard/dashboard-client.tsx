@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -75,9 +76,17 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     value: string | number
   ) => {
     setAssets((prevAssets) =>
-      prevAssets.map((asset) =>
-        asset.assetId === assetId ? { ...asset, [key]: value } : asset
-      )
+      prevAssets.map((asset) => {
+        if (asset.assetId === assetId) {
+          const updatedAsset = { ...asset, [key]: value };
+          // If the system type changes, reset the sub-type
+          if (key === 'septicSystemType') {
+            updatedAsset.assetSubType = value === 'Cistern' ? 'Cistern' : 'Pump Out';
+          }
+          return updatedAsset;
+        }
+        return asset;
+      })
     );
   };
 
@@ -102,6 +111,27 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             <SelectContent>
               <SelectItem value="Cistern">Cistern</SelectItem>
               <SelectItem value="Septic Tank">Septic Tank</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      }
+      if (key === 'assetSubType' && asset.septicSystemType === 'Septic Tank') {
+        return (
+          <Select
+            defaultValue={value as string}
+            onValueChange={(newValue) => {
+              handleValueChange(asset.assetId, key, newValue);
+              setEditingCell(null);
+            }}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pump Out">Pump Out</SelectItem>
+              <SelectItem value="Mound">Mound</SelectItem>
+              <SelectItem value="Septic Field">Septic Field</SelectItem>
+              <SelectItem value="Other">Other</SelectItem>
             </SelectContent>
           </Select>
         );
@@ -145,48 +175,59 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           />
         );
       }
-      return (
-        <Input
-          autoFocus
-          type={typeof value === 'number' ? 'number' : 'text'}
-          defaultValue={value as string | number}
-          onBlur={(e) => {
-            const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
-            handleValueChange(asset.assetId, key as keyof Asset, val);
-            setEditingCell(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const val = typeof value === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value;
+       if (asset.septicSystemType === 'Cistern' && key === 'assetSubType') {
+        // Not editable if it's a Cistern
+      } else {
+        return (
+          <Input
+            autoFocus
+            type={typeof value === 'number' ? 'number' : 'text'}
+            defaultValue={value as string | number}
+            onBlur={(e) => {
+              const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof Asset, val);
               setEditingCell(null);
-            }
-          }}
-          className="h-8"
-        />
-      );
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = typeof value === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value;
+                handleValueChange(asset.assetId, key as keyof Asset, val);
+                setEditingCell(null);
+              }
+            }}
+            className="h-8"
+          />
+        );
+      }
     }
     return <span className="truncate">{String(value ?? '')}</span>;
   };
 
-  const headers: { key: keyof AssetWithRecommendation; label: string, isEditable: boolean }[] = [
-    { key: 'assetId', label: 'Asset ID', isEditable: false },
-    { key: 'address', label: 'Address', isEditable: true },
-    { key: 'yearInstalled', label: 'Year Installed', isEditable: true },
-    { key: 'material', label: 'Material', isEditable: true },
-    { key: 'septicSystemType', label: 'System Type', isEditable: true },
-    { key: 'setbackFromWaterSource', label: 'Setback Water (m)', isEditable: true },
-    { key: 'setbackFromHouse', label: 'Setback House (m)', isEditable: true },
-    { key: 'tankBuryDepth', label: 'Bury Depth (m)', isEditable: true },
-    { key: 'openingSize', label: 'Opening Size (m)', isEditable: true },
-    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)', isEditable: true },
-    { key: 'siteCondition', label: 'Site Condition', isEditable: true },
-    { key: 'coverCondition', label: 'Cover Condition', isEditable: true },
-    { key: 'collarCondition', label: 'Collar Condition', isEditable: true },
-    { key: 'interiorCondition', label: 'Interior Condition', isEditable: true },
-    { key: 'overallCondition', label: 'Overall Condition', isEditable: true },
-    { key: 'fieldNotes', label: 'Field Notes', isEditable: true },
-    { key: 'recommendation', label: 'AI Recommendation', isEditable: true },
+  const isCellEditable = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
+    if (key === 'assetId') return false;
+    if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
+    return true;
+  }
+
+  const headers: { key: keyof AssetWithRecommendation; label: string }[] = [
+    { key: 'assetId', label: 'Asset ID' },
+    { key: 'address', label: 'Address' },
+    { key: 'yearInstalled', label: 'Year Installed' },
+    { key: 'material', label: 'Material' },
+    { key: 'septicSystemType', label: 'System Type' },
+    { key: 'assetSubType', label: 'Sub-Type' },
+    { key: 'setbackFromWaterSource', label: 'Setback Water (m)' },
+    { key: 'setbackFromHouse', label: 'Setback House (m)' },
+    { key: 'tankBuryDepth', label: 'Bury Depth (m)' },
+    { key: 'openingSize', label: 'Opening Size (m)' },
+    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)' },
+    { key: 'siteCondition', label: 'Site Condition' },
+    { key: 'coverCondition', label: 'Cover Condition' },
+    { key: 'collarCondition', label: 'Collar Condition' },
+    { key: 'interiorCondition', label: 'Interior Condition' },
+    { key: 'overallCondition', label: 'Overall Condition' },
+    { key: 'fieldNotes', label: 'Field Notes' },
+    { key: 'recommendation', label: 'AI Recommendation' },
   ];
 
   return (
@@ -217,8 +258,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                   {headers.map((header) => (
                     <TableCell
                       key={header.key}
-                      onClick={() => header.isEditable && setEditingCell(`${asset.assetId}-${header.key}`)}
-                      className={header.isEditable ? 'cursor-pointer' : ''}
+                      onClick={() => isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
+                      className={isCellEditable(asset, header.key) ? 'cursor-pointer' : ''}
                     >
                       {renderCellContent(asset, header.key)}
                     </TableCell>

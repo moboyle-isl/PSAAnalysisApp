@@ -1,3 +1,4 @@
+
 export type Asset = {
   assetId: string;
   address: string;
@@ -9,6 +10,7 @@ export type Asset = {
   openingSize: number;
   aboveGroundCollarHeight: number;
   septicSystemType: 'Cistern' | 'Septic Tank';
+  assetSubType: 'Cistern' | 'Pump Out' | 'Mound' | 'Septic Field' | 'Other';
   siteCondition: number;
   coverCondition: number;
   collarCondition: number;
@@ -35,6 +37,7 @@ export const initialAssets: Asset[] = [
     openingSize: 0.6,
     aboveGroundCollarHeight: 0.2,
     septicSystemType: 'Cistern',
+    assetSubType: 'Cistern',
     siteCondition: 5,
     coverCondition: 4,
     collarCondition: 5,
@@ -53,6 +56,7 @@ export const initialAssets: Asset[] = [
     openingSize: 0.7,
     aboveGroundCollarHeight: 0.1,
     septicSystemType: 'Septic Tank',
+    assetSubType: 'Pump Out',
     siteCondition: 4,
     coverCondition: 3,
     collarCondition: 4,
@@ -71,6 +75,7 @@ export const initialAssets: Asset[] = [
     openingSize: 0.6,
     aboveGroundCollarHeight: 0.3,
     septicSystemType: 'Septic Tank',
+    assetSubType: 'Septic Field',
     siteCondition: 2,
     coverCondition: 2,
     collarCondition: 3,
@@ -89,6 +94,7 @@ export const initialAssets: Asset[] = [
     openingSize: 0.5,
     aboveGroundCollarHeight: 0.2,
     septicSystemType: 'Cistern',
+    assetSubType: 'Cistern',
     siteCondition: 5,
     coverCondition: 5,
     collarCondition: 5,
@@ -107,6 +113,7 @@ export const initialAssets: Asset[] = [
     openingSize: 0.7,
     aboveGroundCollarHeight: 0.15,
     septicSystemType: 'Septic Tank',
+    assetSubType: 'Mound',
     siteCondition: 4,
     coverCondition: 4,
     collarCondition: 4,
