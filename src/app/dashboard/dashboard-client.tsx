@@ -134,6 +134,11 @@ const newAssetSchema = z.object({
   aboveGroundCollarHeight: z.coerce.number().min(0),
   septicSystemType: z.enum(['Cistern', 'Septic Tank']),
   assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
+  siteCondition: z.coerce.number().min(1).max(5),
+  coverCondition: z.coerce.number().min(1).max(5),
+  collarCondition: z.coerce.number().min(1).max(5),
+  interiorCondition: z.coerce.number().min(1).max(5),
+  overallCondition: z.coerce.number().min(1).max(5),
   fieldNotes: z.string().optional(),
 }).refine(data => {
     if (data.septicSystemType === 'Cistern' && data.assetSubType !== 'Cistern') {
@@ -168,6 +173,11 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       aboveGroundCollarHeight: 0,
       septicSystemType: 'Septic Tank',
       assetSubType: 'Pump Out',
+      siteCondition: 5,
+      coverCondition: 5,
+      collarCondition: 5,
+      interiorCondition: 5,
+      overallCondition: 5,
       fieldNotes: '',
     },
   });
@@ -331,11 +341,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     const newAsset: AssetWithRecommendation = {
         ...values,
         assetId: `${assetTypePrefix}-${String(Date.now()).slice(-4)}`,
-        siteCondition: 5,
-        coverCondition: 5,
-        collarCondition: 5,
-        interiorCondition: 5,
-        overallCondition: 5,
         recommendation: undefined,
         estimatedCost: undefined,
         needsPrice: false,
@@ -788,6 +793,46 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                             </FormItem>
                         )} />
 
+                        <FormField control={form.control} name="siteCondition" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Site Condition (1-5)</FormLabel>
+                                <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <FormField control={form.control} name="coverCondition" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Cover Condition (1-5)</FormLabel>
+                                <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <FormField control={form.control} name="collarCondition" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Collar Condition (1-5)</FormLabel>
+                                <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <FormField control={form.control} name="interiorCondition" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Interior Condition (1-5)</FormLabel>
+                                <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <FormField control={form.control} name="overallCondition" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Overall Condition (1-5)</FormLabel>
+                                <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
                         <FormField control={form.control} name="fieldNotes" render={({ field }) => (
                             <FormItem className="md:col-span-2">
                                 <FormLabel>Field Notes</FormLabel>
@@ -831,7 +876,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         </div>
       )}
       <ScrollArea className="flex-grow border rounded-lg">
-        <Table className="table-fixed">
+        <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               {visibleColumns.map((header) => (
