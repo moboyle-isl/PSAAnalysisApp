@@ -1,9 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { RepairPrice } from '@/lib/data';
-import { initialRepairPrices } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -26,23 +25,23 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-function getInitialPrices(): RepairPrice[] {
+function getInitialPrices(defaultPrices: RepairPrice[]): RepairPrice[] {
   const cookie = Cookies.get('repairPrices');
   if (cookie) {
     try {
       const parsed = JSON.parse(cookie);
-      if (Array.isArray(parsed) && parsed.every(p => 'id' in p && 'repairType' in p && 'unitPrice' in p)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed;
       }
     } catch (e) {
       console.error('Failed to parse repairPrices cookie, falling back to initial data.', e);
     }
   }
-  return initialRepairPrices;
+  return defaultPrices;
 }
 
-export function PricingClient() {
-  const [prices, setPrices] = useState<RepairPrice[]>(getInitialPrices);
+export function PricingClient({ initialPrices }: { initialPrices: RepairPrice[] }) {
+  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices(initialPrices));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
 

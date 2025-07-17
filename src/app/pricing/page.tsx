@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/page-header';
 import { PricingClient } from './pricing-client';
+import { initialRepairPrices } from '@/lib/data';
 
 export default function PricingPage() {
   return (
@@ -9,7 +10,7 @@ export default function PricingPage() {
         description="Manage unit prices for repairs and replacements."
       />
       <div className="flex-1 p-6 bg-card rounded-b-lg">
-        <PricingClient />
+        <PricingClient initialPrices={initialRepairPrices} />
       </div>
     </div>
   );
