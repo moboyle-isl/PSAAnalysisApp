@@ -15,7 +15,26 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { Asset } from '@/lib/data';
+import type { Asset, RepairPrice } from '@/lib/data';
+import { initialRepairPrices } from '@/lib/data';
+
+const getRepairPrices = ai.defineTool(
+  {
+    name: 'getRepairPrices',
+    description: 'Returns the list of available repair types and their unit prices.',
+    inputSchema: z.void(),
+    outputSchema: z.array(z.object({
+      id: z.string(),
+      repairType: z.string(),
+      unitPrice: z.number(),
+    })),
+  },
+  async () => {
+    // In a real application, this would fetch from a database.
+    return initialRepairPrices;
+  }
+);
+
 
 const RecommendRepairsInputSchema = z.object({
   conditionData: z.string().describe('The condition data of the asset.'),
@@ -59,7 +78,9 @@ export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllA
 
 const SingleAssetRecommendationSchema = z.object({
     assetId: z.string(),
-    recommendations: z.string().describe('The recommended repairs or replacements.'),
+    recommendation: z.string().describe('The recommended repair or replacement action. Should be a short summary.'),
+    recommendedRepairType: z.string().describe("The specific repair type from the provided tool. If no specific repair is applicable, return 'None'."),
+    estimatedCost: z.number().describe("The estimated cost for the repair. If no repair is recommended, return 0."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -99,13 +120,20 @@ const recommendRepairsFlow = ai.defineFlow(
 
 const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
+  tools: [getRepairPrices],
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
   prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
 
+Use the 'getRepairPrices' tool to see the available repair types and their costs.
+
 User-Defined Rules: {{{userDefinedRules}}}
 
 Analyze the following assets and provide a specific repair or replacement recommendation for each one.
+- For each asset, determine the most appropriate repair from the list provided by the tool.
+- If a repair is needed, specify the 'recommendedRepairType' and calculate the 'estimatedCost' based on the tool's unit prices.
+- The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank").
+- If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", and 'estimatedCost' to 0.
 
 Assets:
 {{#each assets}}

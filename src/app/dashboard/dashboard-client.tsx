@@ -22,7 +22,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -40,8 +40,12 @@ import {
 } from '@/components/ui/popover';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-type AssetWithRecommendation = Asset & { recommendation?: string };
+type AssetWithRecommendation = Asset & { 
+  recommendation?: string,
+  estimatedCost?: number 
+};
 
 type Column = {
   key: keyof AssetWithRecommendation;
@@ -69,6 +73,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'overallCondition', label: 'Overall Condition', type: 'number' },
     { key: 'fieldNotes', label: 'Field Notes', type: 'string' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string' },
+    { key: 'estimatedCost', label: 'Est. Cost', type: 'number' },
 ];
 
 const OPERATORS = {
@@ -102,7 +107,7 @@ type Filter = {
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useState<AssetWithRecommendation[]>(data);
+  const [assets, setAssets] = useState<AssetWithRecommendation[]>(data.map(d => ({ ...d, estimatedCost: 0 })));
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -127,6 +132,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     overallCondition: true,
     fieldNotes: true,
     recommendation: true,
+    estimatedCost: true,
   });
 
   const [filters, setFilters] = useState<Filter[]>([]);
@@ -191,6 +197,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       });
     });
   }, [assets, filters]);
+  
+  const totalRepairCost = useMemo(() => {
+    return filteredAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
+  }, [filteredAssets]);
 
 
   const handleRunRecommendations = async () => {
@@ -202,14 +212,17 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       });
 
       const recommendationsMap = new Map(
-        result.recommendations.map((r) => [r.assetId, r.recommendations])
+        result.recommendations.map((r) => [r.assetId, { recommendation: r.recommendation, estimatedCost: r.estimatedCost }])
       );
 
       setAssets((prevAssets) =>
-        prevAssets.map((asset) => ({
+        prevAssets.map((asset) => {
+          const rec = recommendationsMap.get(asset.assetId);
+          return {
           ...asset,
-          recommendation: recommendationsMap.get(asset.assetId) || asset.recommendation || 'No specific recommendation.',
-        }))
+          recommendation: rec?.recommendation || asset.recommendation || 'No specific recommendation.',
+          estimatedCost: rec?.estimatedCost || asset.estimatedCost || 0,
+        }})
       );
       toast({
         title: "Recommendations Generated",
@@ -359,11 +372,18 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         );
       }
     }
+     if (key === 'estimatedCost') {
+      return (
+        <span className="truncate">
+          {(value as number) > 0 ? `$${(value as number).toFixed(2)}` : '-'}
+        </span>
+      );
+    }
     return <span className="truncate">{String(value ?? '')}</span>;
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
-    if (key === 'assetId' || key === 'recommendation') return false;
+    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
   }
@@ -396,6 +416,36 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
+       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+         <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
+                <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    {filteredAssets.length}
+                </div>
+                 <p className="text-xs text-muted-foreground">
+                    Assets matching current filters
+                </p>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Repair Cost</CardTitle>
+                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">
+                    ${totalRepairCost.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                    Estimated cost for filtered assets
+                </p>
+            </CardContent>
+        </Card>
+      </div>
        <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
            <Button onClick={handleRunRecommendations} disabled={isGenerating}>
