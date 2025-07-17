@@ -42,9 +42,13 @@ function getInitialPrices(): RepairPrice[] {
 }
 
 export function PricingClient({ data }: { data: RepairPrice[] }) {
-  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices());
+  const [prices, setPrices] = useState<RepairPrice[]>(data);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
+
+  useEffect(() => {
+    setPrices(getInitialPrices());
+  }, []);
   
   const updatePrices = (newPrices: RepairPrice[]) => {
     setPrices(newPrices);
