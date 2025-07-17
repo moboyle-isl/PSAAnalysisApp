@@ -31,13 +31,15 @@ function loadPricesFromCookie(): RepairPrice[] {
   if (cookie) {
     try {
       const parsed = JSON.parse(cookie);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      // Correctly handle an empty array as a valid state.
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     } catch (e) {
       console.error('Failed to parse repairPrices cookie, falling back to default data.', e);
     }
   }
+  // If cookie doesn't exist or is invalid, return the initial default prices.
   return initialRepairPrices;
 }
 
