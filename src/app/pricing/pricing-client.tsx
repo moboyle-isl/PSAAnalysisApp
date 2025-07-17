@@ -31,7 +31,7 @@ function loadPricesFromCookie(): RepairPrice[] {
   if (cookie) {
     try {
       const parsed = JSON.parse(cookie);
-      // Correctly handle an empty array as a valid state.
+      // An empty array is a valid state, so we check if it's an array.
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -39,7 +39,8 @@ function loadPricesFromCookie(): RepairPrice[] {
       console.error('Failed to parse repairPrices cookie, falling back to default data.', e);
     }
   }
-  // If cookie doesn't exist or is invalid, return the initial default prices.
+  // If cookie doesn't exist or is invalid, set it with the initial default prices and return them.
+  Cookies.set('repairPrices', JSON.stringify(initialRepairPrices), { expires: 365 });
   return initialRepairPrices;
 }
 
