@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
 import Cookies from 'js-cookie';
 
-function getInitialPrices(): RepairPrice[] {
+function loadPricesFromCookie(): RepairPrice[] {
   const cookie = Cookies.get('repairPrices');
   if (cookie) {
     try {
@@ -42,7 +42,7 @@ function getInitialPrices(): RepairPrice[] {
 }
 
 export function PricingClient() {
-  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices());
+  const [prices, setPrices] = useState<RepairPrice[]>(() => loadPricesFromCookie());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
 
