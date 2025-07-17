@@ -20,7 +20,6 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-  DialogClose
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,35 +31,43 @@ function getInitialPrices(): RepairPrice[] {
   if (cookie) {
     try {
       const parsed = JSON.parse(cookie);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      // Ensure we have a valid array.
+      if (Array.isArray(parsed) && parsed.every(p => 'id' in p && 'repairType' in p && 'unitPrice' in p)) {
         return parsed;
       }
     } catch (e) {
-      console.error('Failed to parse repairPrices cookie', e);
+      console.error('Failed to parse repairPrices cookie, falling back to initial data.', e);
     }
   }
+  // If cookie is missing or invalid, return the default prices.
   return initialRepairPrices;
 }
 
 export function PricingClient({ data }: { data: RepairPrice[] }) {
-  const [prices, setPrices] = useState<RepairPrice[]>(getInitialPrices);
+  // Use lazy initialization for useState to ensure getInitialPrices is only called once on the client.
+  const [prices, setPrices] = useState<RepairPrice[]>(() => getInitialPrices());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
 
   useEffect(() => {
-    // Sync with cookie changes from other tabs/windows
-    const handleStorage = () => {
-       setPrices(getInitialPrices());
+    // This effect ensures that if the cookie is cleared or changed in another tab,
+    // this component's state is updated to reflect that.
+    const handleStorageChange = () => {
+      setPrices(getInitialPrices());
     };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
 
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+  
   const updatePrices = (newPrices: RepairPrice[]) => {
     setPrices(newPrices);
-    Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 7 });
-    // Dispatch a custom event to notify other components like the dashboard
-    window.dispatchEvent(new Event('storage'));
+    Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 365 }); // Store for a year
+     // This event is crucial for other components (like the dashboard) that might need to react to price changes.
+    window.dispatchEvent(new StorageEvent('storage', { key: 'repairPrices' }));
   };
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
@@ -72,17 +79,19 @@ export function PricingClient({ data }: { data: RepairPrice[] }) {
       unitPrice: Number(formData.get('unitPrice')),
     };
 
+    let updatedPrices;
     if (editingPrice) {
-      updatePrices(prices.map((p) => (p.id === editingPrice.id ? newPrice : p)));
+      updatedPrices = prices.map((p) => (p.id === editingPrice.id ? newPrice : p));
     } else {
-      updatePrices([...prices, newPrice]);
+      updatedPrices = [...prices, newPrice];
     }
-
+    updatePrices(updatedPrices);
     handleCloseDialog();
   };
 
   const handleDeletePrice = (id: string) => {
-    updatePrices(prices.filter((p) => p.id !== id));
+    const updatedPrices = prices.filter((p) => p.id !== id);
+    updatePrices(updatedPrices);
   };
   
   const handleOpenDialog = (price: RepairPrice | null = null) => {
@@ -98,14 +107,14 @@ export function PricingClient({ data }: { data: RepairPrice[] }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenDialog(null)}>
               <Plus className="mr-2 h-4 w-4" />
               Add New Repair
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent onEscapeKeyDown={handleCloseDialog}>
             <DialogHeader>
               <DialogTitle>{editingPrice ? 'Edit Repair Price' : 'Add New Repair'}</DialogTitle>
             </DialogHeader>
@@ -119,9 +128,7 @@ export function PricingClient({ data }: { data: RepairPrice[] }) {
                 <Input id="unitPrice" name="unitPrice" type="number" step="0.01" defaultValue={editingPrice?.unitPrice || ''} required />
               </div>
               <DialogFooter>
-                <DialogClose asChild>
-                  <Button type="button" variant="outline">Cancel</Button>
-                </DialogClose>
+                  <Button type="button" variant="outline" onClick={handleCloseDialog}>Cancel</Button>
                 <Button type="submit">{editingPrice ? 'Save Changes' : 'Add Price'}</Button>
               </DialogFooter>
             </form>
