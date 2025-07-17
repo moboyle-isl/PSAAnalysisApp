@@ -9,12 +9,21 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash, Wand2 } from 'lucide-react';
+import { Plus, Trash, Wand2, Pencil } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export type Rule = {
   id: string;
@@ -65,7 +74,13 @@ const ruleSchema = z.object({
     conditionText: z.string().optional(),
     recommendationText: z.string().min(1, 'Please provide a recommendation.'),
 }).refine(data => {
+    const selectedColumn = ASSET_COLUMNS.find(c => c.key === data.column);
+    if (!selectedColumn) return false;
+
     if (data.ruleType === 'fixed') {
+        if (selectedColumn.type === 'enum') {
+            return !!data.operator && (data.value !== undefined && data.value !== '');
+        }
         return !!data.operator && (data.value !== undefined && data.value !== '');
     }
     if (data.ruleType === 'text') {
@@ -81,6 +96,8 @@ const ruleSchema = z.object({
 export function RulesClient() {
   const [rules, setRules] = useLocalStorage<Rule[]>('aiRules', []);
   const [isClient, setIsClient] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<Rule | null>(null);
   
   useEffect(() => {
     setIsClient(true);
@@ -102,13 +119,21 @@ export function RulesClient() {
   const watchColumn = form.watch('column');
 
   const selectedColumn = ASSET_COLUMNS.find(c => c.key === watchColumn);
+  
+  // Reset form when column type changes to avoid invalid operator/value combinations
+  useEffect(() => {
+    if (selectedColumn) {
+      form.reset({
+        ...form.getValues(),
+        operator: undefined,
+        value: '',
+      });
+    }
+  }, [watchColumn, form, selectedColumn]);
 
   function onSubmit(data: z.infer<typeof ruleSchema>) {
-    const newRule: Rule = {
-      id: `RULE-${Date.now()}`,
-      column: data.column,
-      ruleType: data.ruleType,
-      recommendationText: data.recommendationText,
+    const ruleData = {
+      ...data,
       ...(data.ruleType === 'fixed' && {
         operator: data.operator as Rule['operator'],
         value: selectedColumn?.type === 'number' ? Number(data.value) : data.value,
@@ -117,13 +142,49 @@ export function RulesClient() {
         conditionText: data.conditionText,
       }),
     };
-    setRules([...rules, newRule]);
+
+    if (editingRule) {
+      // Update existing rule
+      const updatedRule: Rule = { ...editingRule, ...ruleData };
+      setRules(rules.map(r => r.id === editingRule.id ? updatedRule : r));
+    } else {
+      // Add new rule
+      const newRule: Rule = { id: `RULE-${Date.now()}`, ...ruleData };
+      setRules([...rules, newRule]);
+    }
+    
     form.reset();
+    setEditingRule(null);
+    setIsDialogOpen(false);
   }
 
   const handleDeleteRule = (id: string) => {
     setRules(rules.filter(rule => rule.id !== id));
   };
+
+  const handleOpenDialog = (rule: Rule | null = null) => {
+    setEditingRule(rule);
+    if (rule) {
+      form.reset({
+        column: rule.column,
+        ruleType: rule.ruleType,
+        operator: rule.operator,
+        value: rule.value,
+        conditionText: rule.conditionText,
+        recommendationText: rule.recommendationText,
+      });
+    } else {
+      form.reset({
+        column: '',
+        ruleType: 'fixed',
+        operator: undefined,
+        value: '',
+        conditionText: '',
+        recommendationText: '',
+      });
+    }
+    setIsDialogOpen(true);
+  }
   
   const renderRule = (rule: Rule) => {
       const column = ASSET_COLUMNS.find(c => c.key === rule.column);
@@ -146,17 +207,23 @@ export function RulesClient() {
   }
 
   return (
-    <div className="grid md:grid-cols-2 gap-8 items-start">
-      <Card>
-        <CardHeader>
-          <CardTitle>Create a New Rule</CardTitle>
-          <CardDescription>
-            Build rules to guide the AI. For example: "If Overall Condition is less than 3, then recommend a full system replacement."
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="space-y-8">
+      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
+          if (!isOpen) {
+              setEditingRule(null);
+              form.reset();
+          }
+          setIsDialogOpen(isOpen);
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{editingRule ? 'Edit Rule' : 'Create a New Rule'}</DialogTitle>
+            <CardDescription>
+              Build rules to guide the AI. For example: "If Overall Condition is less than 3, then recommend a full system replacement."
+            </CardDescription>
+          </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
               <FormField
                 control={form.control}
                 name="ruleType"
@@ -206,7 +273,7 @@ export function RulesClient() {
                     render={({ field }) => (
                       <FormItem>
                         <Label>Has this condition...</Label>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger><SelectValue placeholder="Select a condition..." /></SelectTrigger>
                           </FormControl>
@@ -228,14 +295,14 @@ export function RulesClient() {
                         <Label>With this value...</Label>
                         <FormControl>
                           {selectedColumn.type === 'enum' ? (
-                             <Select onValueChange={field.onChange} defaultValue={field.value as string}>
+                             <Select onValueChange={field.onChange} value={field.value as string}>
                                 <SelectTrigger><SelectValue placeholder="Select a value..." /></SelectTrigger>
                                 <SelectContent>
                                     {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                           ) : (
-                            <Input placeholder="Enter a value" {...field} type={selectedColumn.type === 'number' ? 'number' : 'text'} />
+                            <Input placeholder="Enter a value" {...field} type={selectedColumn.type === 'number' ? 'number' : 'text'} value={field.value ?? ''} />
                           )}
                         </FormControl>
                         <FormMessage />
@@ -253,7 +320,7 @@ export function RulesClient() {
                     <FormItem>
                       <Label>And contains this text...</Label>
                       <FormControl>
-                        <Textarea placeholder="e.g., 'roots', 'damaged lid'" {...field} />
+                        <Textarea placeholder="e.g., 'roots', 'damaged lid'" {...field} value={field.value ?? ''} />
                       </FormControl>
                        <p className="text-xs text-muted-foreground">Provide keywords or phrases to look for.</p>
                       <FormMessage />
@@ -262,36 +329,46 @@ export function RulesClient() {
                 />
               )}
 
-                <FormField
-                    control={form.control}
-                    name="recommendationText"
-                    render={({ field }) => (
-                        <FormItem>
-                            <Label>Then, recommend...</Label>
-                            <FormControl>
-                                <Textarea placeholder="e.g., A full system replacement." {...field} />
-                            </FormControl>
-                            <p className="text-xs text-muted-foreground">This is the exact recommendation text the AI will use.</p>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+              <FormField
+                  control={form.control}
+                  name="recommendationText"
+                  render={({ field }) => (
+                      <FormItem>
+                          <Label>Then, recommend...</Label>
+                          <FormControl>
+                              <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
+                          </FormControl>
+                          <p className="text-xs text-muted-foreground">This is the exact recommendation text the AI will use.</p>
+                          <FormMessage />
+                      </FormItem>
+                  )}
+              />
 
-              <Button type="submit" className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Rule
-              </Button>
+              <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">Cancel</Button>
+                  </DialogClose>
+                  <Button type="submit">{editingRule ? 'Save Changes' : 'Add Rule'}</Button>
+              </DialogFooter>
             </form>
           </Form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
       
       <Card>
-        <CardHeader>
-          <CardTitle>Active Rules</CardTitle>
-          <CardDescription>
-            These rules will be sent to the AI to influence its recommendations.
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle>Active Rules</CardTitle>
+                <CardDescription>
+                    These rules will be sent to the AI to influence its recommendations.
+                </CardDescription>
+            </div>
+            {isClient && (
+                <Button onClick={() => handleOpenDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Rule
+                </Button>
+            )}
         </CardHeader>
         <CardContent>
           {isClient ? (
@@ -306,16 +383,23 @@ export function RulesClient() {
                             <p className="text-sm text-muted-foreground">Then, recommend: <span className="font-semibold">{rule.recommendationText}</span></p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
-                      <Trash className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center">
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit Rule</span>
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
+                            <Trash className="h-4 w-4" />
+                            <span className="sr-only">Delete Rule</span>
+                        </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
                 <p>No rules defined yet.</p>
-                <p className="text-sm">Use the form to create your first rule.</p>
+                <p className="text-sm">Click "Add Rule" to create your first one.</p>
               </div>
             )
           ) : (
