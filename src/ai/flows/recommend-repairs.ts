@@ -17,11 +17,12 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import type { Asset, RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
+import { getRepairPricesFromCookie } from '@/app/actions';
 
 const getRepairPrices = ai.defineTool(
   {
     name: 'getRepairPrices',
-    description: 'Returns the list of available repair types and their unit prices.',
+    description: 'Returns the list of available repair types and their unit prices. This should be called to get the most up-to-date pricing information.',
     inputSchema: z.void(),
     outputSchema: z.array(z.object({
       id: z.string(),
@@ -30,7 +31,11 @@ const getRepairPrices = ai.defineTool(
     })),
   },
   async () => {
-    // In a real application, this would fetch from a database.
+    const prices = await getRepairPricesFromCookie();
+    if (prices && prices.length > 0) {
+      return prices;
+    }
+    // Fallback to initial data if cookie is not available or empty
     return initialRepairPrices;
   }
 );
@@ -125,7 +130,7 @@ const allAssetsPrompt = ai.definePrompt({
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
   prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
 
-Use the 'getRepairPrices' tool to see the available repair types and their costs.
+You MUST use the 'getRepairPrices' tool to see the available repair types and their costs. Do not invent prices.
 
 User-Defined Rules: {{{userDefinedRules}}}
 

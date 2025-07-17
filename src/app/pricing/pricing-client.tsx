@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import type { RepairPrice } from '@/lib/data';
+import { initialRepairPrices } from '@/lib/data';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 import {
   Table,
   TableHeader,
@@ -23,11 +25,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
+import Cookies from 'js-cookie';
 
 export function PricingClient({ data }: { data: RepairPrice[] }) {
-  const [prices, setPrices] = useState<RepairPrice[]>(data);
+  const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
+
+  const updatePrices = (newPrices: RepairPrice[]) => {
+    setPrices(newPrices);
+    Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 7 });
+  };
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,16 +47,16 @@ export function PricingClient({ data }: { data: RepairPrice[] }) {
     };
 
     if (editingPrice) {
-      setPrices(prices.map((p) => (p.id === editingPrice.id ? newPrice : p)));
+      updatePrices(prices.map((p) => (p.id === editingPrice.id ? newPrice : p)));
     } else {
-      setPrices([...prices, newPrice]);
+      updatePrices([...prices, newPrice]);
     }
 
     handleCloseDialog();
   };
 
   const handleDeletePrice = (id: string) => {
-    setPrices(prices.filter((p) => p.id !== id));
+    updatePrices(prices.filter((p) => p.id !== id));
   };
   
   const handleOpenDialog = (price: RepairPrice | null = null) => {
