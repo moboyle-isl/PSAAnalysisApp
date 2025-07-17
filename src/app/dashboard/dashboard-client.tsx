@@ -596,83 +596,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             )}
             Run AI Recommendations
           </Button>
-          <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" disabled={!isClient}>
-                <FilterIcon className="mr-2 h-4 w-4" />
-                Filter
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium leading-none">Add Filter</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Create a filter to refine the data.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Column</Label>
-                   <Select onValueChange={(val) => setCurrentFilter({ column: ALL_COLUMNS.find(c => c.key === val) })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a column" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ALL_COLUMNS.filter(c => c.key !== 'assetId').map(col => (
-                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                </div>
-                {currentFilter.column && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label>Operator</Label>
-                      <Select value={currentFilter.operator} onValueChange={(val) => setCurrentFilter(f => ({...f, operator: val}))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an operator"/>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {OPERATORS[currentFilter.column!.type].map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Value</Label>
-                      {renderFilterValueInput()}
-                    </div>
-                  </>
-                )}
-                <Button onClick={handleAddFilter} disabled={!currentFilter.column || !currentFilter.operator || currentFilter.value === undefined || currentFilter.value === ''}>Add Filter</Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={!isClient}>
-                <View className="mr-2 h-4 w-4" />
-                View
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {ALL_COLUMNS.map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.key}
-                  checked={columnVisibility[column.key]}
-                  onCheckedChange={(value) =>
-                    setColumnVisibility((prev) => ({ ...prev, [column.key]: value }))
-                  }
-                  disabled={column.key === 'assetId'}
-                >
-                  {column.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        <div className="flex items-center gap-4">
            <Dialog open={isNewAssetDialogOpen} onOpenChange={setIsNewAssetDialogOpen}>
               <DialogTrigger asChild>
                 <Button disabled={!isClient}>
@@ -851,6 +774,83 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 </Form>
               </DialogContent>
            </Dialog>
+          <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" disabled={!isClient}>
+                <FilterIcon className="mr-2 h-4 w-4" />
+                Filter
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Add Filter</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Create a filter to refine the data.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Column</Label>
+                   <Select onValueChange={(val) => setCurrentFilter({ column: ALL_COLUMNS.find(c => c.key === val) })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ALL_COLUMNS.filter(c => c.key !== 'assetId').map(col => (
+                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+                {currentFilter.column && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label>Operator</Label>
+                      <Select value={currentFilter.operator} onValueChange={(val) => setCurrentFilter(f => ({...f, operator: val}))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an operator"/>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {OPERATORS[currentFilter.column!.type].map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Value</Label>
+                      {renderFilterValueInput()}
+                    </div>
+                  </>
+                )}
+                <Button onClick={handleAddFilter} disabled={!currentFilter.column || !currentFilter.operator || currentFilter.value === undefined || currentFilter.value === ''}>Add Filter</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" disabled={!isClient}>
+                <View className="mr-2 h-4 w-4" />
+                View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {ALL_COLUMNS.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.key}
+                  checked={columnVisibility[column.key]}
+                  onCheckedChange={(value) =>
+                    setColumnVisibility((prev) => ({ ...prev, [column.key]: value }))
+                  }
+                  disabled={column.key === 'assetId'}
+                >
+                  {column.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-4">
            <Button variant="ghost" onClick={handleResetData} disabled={!isClient}>
              <RotateCcw className="mr-2 h-4 w-4" />
              Reset Data
