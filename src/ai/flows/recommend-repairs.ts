@@ -152,6 +152,8 @@ Assets to Analyze:
 - Sub-Type: {{assetSubType}}
 - Year Installed: {{yearInstalled}}
 - Material: {{material}}
+- Setback Water (m): {{setbackFromWaterSource}}
+- Setback House (m): {{setbackFromHouse}}
 - Site Condition: {{siteCondition}}/5
 - Cover Condition: {{coverCondition}}/5
 - Collar Condition: {{collarCondition}}/5
