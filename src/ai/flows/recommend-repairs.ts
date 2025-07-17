@@ -111,59 +111,81 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and a set of user-defined rules. Your most important task is to apply the user-defined rules first, and then fall back to intelligent matching against available repairs.
+  prompt: `You are an AI asset management expert. Your task is to provide repair recommendations for a list of assets.
 
-You MUST follow this logic:
-1.  **Apply User-Defined Rules First:** For each asset, check if it matches any of the user-defined rules. The rules are the highest priority. If a rule matches, use the recommendation from that rule and stop further analysis for that asset.
-2.  **Intelligent Matching (if no rule applies):** If no user rule matches, proceed with this logic:
-    a.  Analyze the 'fieldNotes' in combination with the asset's 'septicSystemType' and 'assetSubType'. This provides critical context.
-    b.  Intelligently search the 'repairPrices' list for a 'repairType' that addresses the problem described.
-        - Be flexible with wording and synonyms. For example, "damaged lid", "cracked cover" should match "Lid Replacement". "tank", "container", or "vessel" should match "Cistern" if the asset type is a cistern.
-        - Use the asset's type for context. If an asset is a 'Cistern' and the notes mention "tank replacement", you should match it to a "Replace Cistern" repair if available.
-    c.  If a reasonably confident match is found in the 'repairPrices' list:
-        - Set 'recommendation' to a short summary of that action (e.g., "Replace damaged lid").
+You MUST follow this logic precisely for each asset:
+1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
+    - For each asset, check if its data matches any of the user-defined rules provided below.
+    - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
+    - When a rule matches:
+        - Set 'recommendation' to the text provided in the rule.
+        - Set 'recommendedRepairType' to the SAME text.
+        - Search the 'Available Repairs and Prices' list for a 'repairType' that exactly matches the recommendation text.
+        - If you find an exact match, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
+        - If you DO NOT find an exact match, set 'estimatedCost' to 0 and 'needsPrice' to true.
+    - Once a rule matches, STOP further analysis for that asset and move to the next one.
+
+2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no rule applies).**
+    - If no user rule matches an asset, then analyze its 'fieldNotes' and other properties.
+    - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
+    - If a confident match is found:
+        - Set 'recommendation' to a short summary (e.g., "Replace damaged lid").
         - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
         - Set 'estimatedCost' to the corresponding 'unitPrice'.
         - Set 'needsPrice' to false.
-    d.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list, even with contextual matching:
+    - If 'fieldNotes' describe a problem but you CANNOT find a matching repair:
         - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
-        - Set 'recommendedRepairType' to a new, descriptive name for the repair (e.g., "Tank Crack Repair").
-        - You MUST set 'estimatedCost' to 0.
-        - You MUST set 'needsPrice' to true.
-3.  **General Inspection (Low Priority):** If no rules apply and 'fieldNotes' indicate no problems, you may then consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection (e.g., "General Inspection Recommended"). Set 'recommendedRepairType' to "General Inspection", 'estimatedCost' to 0, and 'needsPrice' to true.
-4.  **No Action Needed:** If no rules apply, the 'fieldNotes' are clear (e.g., "OK", "No issues"), and condition scores are good, the correct output is to set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0 and 'needsPrice' to false.
+        - Set 'recommendedRepairType' to a new, descriptive name (e.g., "Tank Crack Repair").
+        - Set 'estimatedCost' to 0.
+        - Set 'needsPrice' to true.
 
-User-Defined Rules (Highest Priority):
+3.  **PRIORITY 3: GENERAL INSPECTION.**
+    - If no rules apply and 'fieldNotes' are empty or non-specific (e.g., "OK"), then look at the condition scores.
+    - If any condition score is 3 or less, recommend a general inspection.
+    - Set 'recommendation' to "General Inspection Recommended".
+    - Set 'recommendedRepairType' to "General Inspection".
+    - Set 'estimatedCost' to 0 and 'needsPrice' to true.
+
+4.  **PRIORITY 4: NO ACTION NEEDED.**
+    - If no rules apply, 'fieldNotes' are clear (e.g., "OK", "No issues"), and condition scores are good (4 or 5), then no action is needed.
+    - Set 'recommendation' to "No action needed".
+    - Set 'recommendedRepairType' to "None".
+    - Set 'estimatedCost' to 0 and 'needsPrice' to false.
+
+---
+**User-Defined Rules (Highest Priority):**
 {{#if userDefinedRules}}
 {{{userDefinedRules}}}
 {{else}}
 No user-defined rules provided.
 {{/if}}
 
-Available Repairs and Prices:
+---
+**Available Repairs and Prices:**
 {{#each repairPrices}}
 - {{repairType}}: \${{unitPrice}}
 {{/each}}
 
-Assets to Analyze:
+---
+**Assets to Analyze:**
 {{#each assets}}
 - Asset ID: {{assetId}}
-- Address: {{address}}
-- Type: {{septicSystemType}}
-- Sub-Type: {{assetSubType}}
-- Year Installed: {{yearInstalled}}
-- Material: {{material}}
-- Setback Water (m): {{setbackFromWaterSource}}
-- Setback House (m): {{setbackFromHouse}}
-- Bury Depth (m): {{tankBuryDepth}}
-- Opening Size (m): {{openingSize}}
-- Collar Height (m): {{aboveGroundCollarHeight}}
-- Site Condition: {{siteCondition}}/5
-- Cover Condition: {{coverCondition}}/5
-- Collar Condition: {{collarCondition}}/5
-- Interior Condition: {{interiorCondition}}/5
-- Overall Condition: {{overallCondition}}/5
-- Field Notes: "{{fieldNotes}}"
+  - Address: {{address}}
+  - Year Installed: {{yearInstalled}}
+  - Material: {{material}}
+  - Setback Water (m): {{setbackFromWaterSource}}
+  - Setback House (m): {{setbackFromHouse}}
+  - Bury Depth (m): {{tankBuryDepth}}
+  - Opening Size (m): {{openingSize}}
+  - Collar Height (m): {{aboveGroundCollarHeight}}
+  - System Type: {{septicSystemType}}
+  - Sub-Type: {{assetSubType}}
+  - Site Condition: {{siteCondition}}/5
+  - Cover Condition: {{coverCondition}}/5
+  - Collar Condition: {{collarCondition}}/5
+  - Interior Condition: {{interiorCondition}}/5
+  - Overall Condition: {{overallCondition}}/5
+  - Field Notes: "{{fieldNotes}}"
 {{/each}}
 
 Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema.
