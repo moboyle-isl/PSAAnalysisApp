@@ -23,13 +23,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function PricingClient() {
   const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -64,6 +71,7 @@ export function PricingClient() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
+        {isClient ? (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenDialog(null)}>
@@ -91,6 +99,9 @@ export function PricingClient() {
             </form>
           </DialogContent>
         </Dialog>
+        ) : (
+          <Skeleton className="h-10 w-[160px]" />
+        )}
       </div>
       <div className="border rounded-lg">
         <Table>
@@ -102,7 +113,13 @@ export function PricingClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {prices.length === 0 ? (
+            {!isClient ? (
+              <TableRow>
+                  <TableCell colSpan={3}>
+                    <Skeleton className="h-8 w-full" />
+                  </TableCell>
+              </TableRow>
+            ) : prices.length === 0 ? (
                <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                     No repair prices configured. Click "Add New Repair" to get started.
