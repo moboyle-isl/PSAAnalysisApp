@@ -122,13 +122,14 @@ export function RulesClient() {
   
   // Reset form when column type changes to avoid invalid operator/value combinations
   useEffect(() => {
-    if (selectedColumn) {
+    if (selectedColumn && form.formState.isSubmitted === false) {
       form.reset({
         ...form.getValues(),
         operator: undefined,
         value: '',
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchColumn, form, selectedColumn]);
 
   function onSubmit(data: z.infer<typeof ruleSchema>) {
@@ -230,7 +231,7 @@ export function RulesClient() {
                 render={({ field }) => (
                   <FormItem>
                     <Label>Rule Type</Label>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                       </FormControl>
@@ -250,7 +251,7 @@ export function RulesClient() {
                 render={({ field }) => (
                   <FormItem>
                     <Label>If this Asset Column...</Label>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
                       </FormControl>
