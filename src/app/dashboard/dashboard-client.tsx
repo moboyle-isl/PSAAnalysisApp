@@ -141,14 +141,14 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<{column?: Column, operator?: string, value?: string}>({});
   
-  // This effect ensures that if the initial data from props changes (e.g. on a hard refresh with new server data),
-  // we check if we should re-initialize the localStorage data. We only do this if there's no data in localStorage yet.
   useEffect(() => {
+    // This effect runs only once on the client after hydration to initialize localStorage if it's empty.
     const storedData = localStorage.getItem('assets');
     if (!storedData) {
-      setAssets(data.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
+      setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
     }
-  }, [data, setAssets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array ensures this runs only once on mount.
 
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
