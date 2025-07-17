@@ -59,25 +59,25 @@ type Column = {
 };
 
 const ALL_COLUMNS: Column[] = [
-    { key: 'assetId', label: 'Asset ID', type: 'string' },
+    { key: 'assetId', label: 'Asset ID', type: 'string', width: '120px' },
     { key: 'address', label: 'Address', type: 'string' },
-    { key: 'yearInstalled', label: 'Year Installed', type: 'number' },
-    { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
-    { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
-    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'] },
+    { key: 'yearInstalled', label: 'Year Installed', type: 'number', width: '120px' },
+    { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'], width: '150px' },
+    { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'], width: '150px' },
+    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'], width: '150px' },
     { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number' },
     { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number' },
     { key: 'tankBuryDepth', label: 'Bury Depth (m)', type: 'number' },
     { key: 'openingSize', label: 'Opening Size (m)', type: 'number' },
     { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)', type: 'number' },
-    { key: 'siteCondition', label: 'Site Condition', type: 'number' },
-    { key: 'coverCondition', label: 'Cover Condition', type: 'number' },
-    { key: 'collarCondition', label: 'Collar Condition', type: 'number' },
-    { key: 'interiorCondition', label: 'Interior Condition', type: 'number' },
-    { key: 'overallCondition', label: 'Overall Condition', type: 'number' },
+    { key: 'siteCondition', label: 'Site Condition', type: 'number', width: '120px' },
+    { key: 'coverCondition', label: 'Cover Condition', type: 'number', width: '120px' },
+    { key: 'collarCondition', label: 'Collar Condition', type: 'number', width: '120px' },
+    { key: 'interiorCondition', label: 'Interior Condition', type: 'number', width: '120px' },
+    { key: 'overallCondition', label: 'Overall Condition', type: 'number', width: '120px' },
     { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
-    { key: 'estimatedCost', label: 'Est. Cost', type: 'number' },
+    { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
 ];
 
 const OPERATORS = {
