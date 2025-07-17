@@ -110,11 +110,24 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
+  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules. Your most important task is to prioritize the 'fieldNotes'.
 
-You MUST pay close attention to the 'fieldNotes' for each asset. These notes contain crucial observations from on-site technicians and should be heavily weighted in your analysis. If the field notes describe a specific problem (e.g., "damaged lid", "visible roots", "minor cracks on cover"), you must recommend a repair for that specific issue, even if the numerical condition scores seem acceptable.
-
-You are given a list of available repair types and their costs. Do not invent prices.
+You MUST follow this logic:
+1.  For each asset, first examine the 'fieldNotes'. This is the most critical piece of information.
+2.  Identify keywords in the 'fieldNotes' describing a problem (e.g., "damaged lid", "cracked cover", "roots", "leaking").
+3.  Search the 'repairPrices' list for a 'repairType' that directly addresses the problem described in the notes. For example, if notes say "cracked lid", you should look for a repair like "Lid Replacement" or "Cover Repair".
+4.  If a matching repair is found in the 'repairPrices' list:
+    - Set 'recommendation' to a short summary of that action (e.g., "Replace damaged lid").
+    - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
+    - Set 'estimatedCost' to the corresponding 'unitPrice'.
+    - Set 'needsPrice' to false.
+5.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list:
+    - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
+    - Set 'recommendedRepairType' to a new, descriptive name (e.g., "Tank Crack Repair").
+    - You MUST set 'estimatedCost' to 0.
+    - You MUST set 'needsPrice' to true.
+6.  If and only if the 'fieldNotes' indicate no problems, then you may consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection.
+7.  If the 'fieldNotes' are clear and condition scores are good, the correct output is "No action needed".
 
 Available Repairs and Prices:
 {{#each repairPrices}}
@@ -125,16 +138,7 @@ Available Repairs and Prices:
 
 User-Defined Rules: {{{userDefinedRules}}}
 
-Analyze the following assets and provide a specific repair or replacement recommendation for each one.
-- For each asset, determine the most appropriate repair by synthesizing the numerical data and the qualitative field notes.
-- The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank", "Replace damaged cover").
-- If a repair is needed, set 'recommendedRepairType' to the name of the repair.
-- Check if the 'recommendedRepairType' exists in the provided price list.
-- If it exists, calculate the 'estimatedCost' based on the unit prices and set 'needsPrice' to false.
-- If the 'recommendedRepairType' does NOT exist in the price list, you MUST set 'estimatedCost' to 0 and 'needsPrice' to true.
-- If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0, and 'needsPrice' to false.
-
-Assets:
+Assets to Analyze:
 {{#each assets}}
 - Asset ID: {{assetId}}
 - Type: {{septicSystemType}}
