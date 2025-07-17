@@ -86,6 +86,7 @@ const SingleAssetRecommendationSchema = z.object({
     recommendation: z.string().describe('The recommended repair or replacement action. Should be a short summary.'),
     recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided tool or a new one if appropriate. If no specific repair is applicable, return 'None'."),
     estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
+    needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided tool, otherwise set to false."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -139,9 +140,9 @@ Analyze the following assets and provide a specific repair or replacement recomm
 - The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank").
 - If a repair is needed, set 'recommendedRepairType' to the name of the repair.
 - Check if the 'recommendedRepairType' exists in the list from the tool.
-- If it exists, calculate the 'estimatedCost' based on the tool's unit prices.
-- If the 'recommendedRepairType' does NOT exist in the tool's price list, you MUST set 'estimatedCost' to 0. In the 'recommendation' field, you MUST add the sentence: "Please add a price for this repair in the Price Configuration tool."
-- If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", and 'estimatedCost' to 0.
+- If it exists, calculate the 'estimatedCost' based on the tool's unit prices and set 'needsPrice' to false.
+- If the 'recommendedRepairType' does NOT exist in the tool's price list, you MUST set 'estimatedCost' to 0 and 'needsPrice' to true.
+- If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0, and 'needsPrice' to false.
 
 Assets:
 {{#each assets}}

@@ -45,8 +45,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
 type AssetWithRecommendation = Asset & { 
-  recommendation?: string,
-  estimatedCost?: number 
+  recommendation?: string;
+  estimatedCost?: number;
+  needsPrice?: boolean;
 };
 
 type Column = {
@@ -109,15 +110,20 @@ type Filter = {
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', data.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined })));
+  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
-  const [isClient, setIsClient] = useState(false)
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true)
-  }, [])
+    setIsClient(true);
+    // On mount, check if local storage has been initialized. If not, use the server-provided data.
+    const storedAssets = window.localStorage.getItem('assets');
+    if (!storedAssets || JSON.parse(storedAssets).length === 0) {
+      setAssets(data.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
+    }
+  }, [data, setAssets]);
   
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
@@ -170,11 +176,13 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
   
   const filteredAssets = useMemo(() => {
-    const assetsToFilter = isClient ? assets : data;
-    if (filters.length === 0) {
-      return assetsToFilter;
+    if (!isClient) {
+      return data;
     }
-    return assetsToFilter.filter(asset => {
+    if (filters.length === 0) {
+      return assets;
+    }
+    return assets.filter(asset => {
       return filters.every(filter => {
         const assetValue = asset[filter.column];
         if (assetValue === undefined || assetValue === null) return false;
@@ -221,18 +229,21 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       });
 
       const recommendationsMap = new Map(
-        result.recommendations.map((r) => [r.assetId, { recommendation: r.recommendation, estimatedCost: r.estimatedCost }])
+        result.recommendations.map((r) => [r.assetId, { recommendation: r.recommendation, estimatedCost: r.estimatedCost, needsPrice: r.needsPrice }])
       );
 
       setAssets((prevAssets) =>
         prevAssets.map((asset) => {
           const rec = recommendationsMap.get(asset.assetId);
-          return {
-          ...asset,
-          recommendation: rec?.recommendation || asset.recommendation || 'No specific recommendation.',
-          estimatedCost: rec?.estimatedCost ?? asset.estimatedCost ?? undefined,
-        }})
+          return rec ? {
+            ...asset,
+            recommendation: rec.recommendation,
+            estimatedCost: rec.estimatedCost,
+            needsPrice: rec.needsPrice,
+          } : asset;
+        })
       );
+
       toast({
         title: "Recommendations Generated",
         description: "AI recommendations have been added for all assets.",
@@ -272,7 +283,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
   
   const handleResetData = () => {
-    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined })));
+    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
     toast({
         title: "Data Reset",
         description: "All asset data has been reset to its initial state.",
@@ -397,6 +408,20 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         </span>
       );
     }
+    
+    if (key === 'recommendation') {
+      return (
+        <div>
+          <span className="truncate">{String(value ?? '')}</span>
+          {asset.needsPrice && (
+            <p className="text-xs text-destructive">
+              Please add a price for this repair in the Price Configuration tool.
+            </p>
+          )}
+        </div>
+      );
+    }
+
     return <span className="truncate">{String(value ?? '')}</span>;
   };
 
@@ -438,7 +463,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
-                <span className="text-muted-foreground">{filteredAssets.length} / {isClient ? assets.length : data.length}</span>
+                <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">
