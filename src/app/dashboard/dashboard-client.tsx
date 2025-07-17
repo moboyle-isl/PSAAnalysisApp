@@ -117,18 +117,31 @@ const OPERATORS = {
     { value: 'not_equals', label: 'Does not equal' },
   ],
   number: [
-    { value: 'equals', label: '=' },
-    { value: 'not_equals', label: '!=' },
+    { value: 'eq', label: '=' },
+    { value: 'neq', label: '!=' },
     { value: 'gt', label: '>' },
     { value: 'gte', label: '>=' },
     { value: 'lt', label: '<' },
     { value: 'lte', label: '<=' },
   ],
   enum: [
-    { value: 'equals', label: 'Is' },
-    { value: 'not_equals', label: 'Is not' },
+    { value: 'eq', label: 'Is' },
+    { value: 'neq', label: 'Is not' },
   ],
   action: [],
+};
+
+const OPERATOR_TEXT_MAP: Record<string, string> = {
+  contains: 'contains',
+  equals: 'is equal to',
+  not_contains: 'does not contain',
+  not_equals: 'is not equal to',
+  eq: 'is equal to',
+  neq: 'is not equal to',
+  gt: 'is greater than',
+  gte: 'is greater than or equal to',
+  lt: 'is less than',
+  lte: 'is less than or equal to',
 };
 
 
@@ -306,8 +319,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               case 'number':
                 const numValue = Number(assetValue);
                 const filterNumValue = Number(filter.value);
-                if (filter.operator === 'equals') return numValue === filterNumValue;
-                if (filter.operator === 'not_equals') return numValue !== filterNumValue;
+                if (filter.operator === 'equals' || filter.operator === 'eq') return numValue === filterNumValue;
+                if (filter.operator === 'not_equals' || filter.operator === 'neq') return numValue !== filterNumValue;
                 if (filter.operator === 'gt') return numValue > filterNumValue;
                 if (filter.operator === 'gte') return numValue >= filterNumValue;
                 if (filter.operator === 'lt') return numValue < filterNumValue;
@@ -354,12 +367,14 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       // Convert rules to a string format for the prompt
       const rulesString = rules.map(rule => {
         const columnLabel = ALL_COLUMNS.find(c => c.key === rule.column)?.label || rule.column;
-        if (rule.ruleType === 'fixed') {
-          return `If ${columnLabel} is ${rule.operator} ${rule.value}, then recommend: "${rule.recommendationText}"`;
-        } else {
+        if (rule.ruleType === 'fixed' && rule.operator) {
+          const operatorText = OPERATOR_TEXT_MAP[rule.operator] || rule.operator;
+          return `If ${columnLabel} ${operatorText} ${rule.value}, then recommend: "${rule.recommendationText}"`;
+        } else if (rule.ruleType === 'text' && rule.conditionText) {
           return `If ${columnLabel} contains "${rule.conditionText}", then recommend: "${rule.recommendationText}"`;
         }
-      }).join('\n');
+        return '';
+      }).filter(Boolean).join('\n');
 
       const result = await recommendRepairsForAllAssets({
         assets: assets,
@@ -646,7 +661,9 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const renderFilterValueInput = () => {
     if (!currentFilter.column) return null;
     
-    if (currentFilter.column.type === 'enum') {
+    const columnType = ALL_COLUMNS.find(c => c.key === currentFilter.column?.key)?.type;
+
+    if (columnType === 'enum' && currentFilter.column.options) {
       return (
         <Select value={currentFilter.value} onValueChange={(val) => setCurrentFilter(f => ({ ...f, value: val }))}>
           <SelectTrigger>
@@ -661,7 +678,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
     return (
        <Input 
-         type={currentFilter.column.type === 'number' ? 'number' : 'text'}
+         type={columnType === 'number' ? 'number' : 'text'}
          placeholder="Enter value..."
          value={currentFilter.value || ''}
          onChange={(e) => setCurrentFilter(f => ({ ...f, value: e.target.value }))}
@@ -955,7 +972,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                           <SelectValue placeholder="Select an operator"/>
                         </SelectTrigger>
                         <SelectContent>
-                          {OPERATORS[currentFilter.column!.type].map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
+                          {OPERATORS[currentFilter.column!.type as 'string' | 'number' | 'enum'].map(op => <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -1058,7 +1075,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               {filters.map(filter => {
                  const column = ALL_COLUMNS.find(c => c.key === filter.column);
                  if (!column) return null;
-                 const operator = OPERATORS[column.type as keyof typeof OPERATORS]?.find(o => o.value === filter.operator);
+                 const operator = OPERATORS[column.type as 'string' | 'number' | 'enum']?.find(o => o.value === filter.operator);
                  return (
                   <Badge key={filter.id} variant="secondary" className="pl-2 pr-1">
                     {column?.label} {operator?.label.toLowerCase()} "{filter.value}"
