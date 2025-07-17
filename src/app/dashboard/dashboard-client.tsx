@@ -339,12 +339,21 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
   const handleAddNewAsset = (values: z.infer<typeof newAssetSchema>) => {
     const assetTypePrefix = values.septicSystemType === 'Cistern' ? 'C' : 'S';
+    
+    const existingIds = assets
+      .filter(asset => asset.assetId.startsWith(assetTypePrefix + '-'))
+      .map(asset => parseInt(asset.assetId.split('-')[1], 10))
+      .filter(num => !isNaN(num));
+
+    const newIdNumber = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+    const newAssetId = `${assetTypePrefix}-${String(newIdNumber).padStart(3, '0')}`;
+
     const newAsset: AssetWithRecommendation = {
-        ...values,
-        assetId: `${assetTypePrefix}-${String(Date.now()).slice(-4)}`,
-        recommendation: undefined,
-        estimatedCost: undefined,
-        needsPrice: false,
+      ...values,
+      assetId: newAssetId,
+      recommendation: undefined,
+      estimatedCost: undefined,
+      needsPrice: false,
     };
     setAssets(prev => [newAsset, ...prev]);
     toast({
@@ -787,7 +796,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 </Form>
               </DialogContent>
            </Dialog>
-          <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" disabled={!isClient}>
                 <FilterIcon className="mr-2 h-4 w-4" />
