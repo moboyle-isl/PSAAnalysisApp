@@ -499,7 +499,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       </div>
        <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-           <Button onClick={handleRunRecommendations} disabled={isGenerating || !isClient}>
+          <Button onClick={handleRunRecommendations} disabled={isGenerating || !isClient}>
             {isGenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -507,8 +507,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             )}
             Run AI Recommendations
           </Button>
-        </div>
-        <div className="flex items-center gap-4">
           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" disabled={!isClient}>
@@ -560,7 +558,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               </div>
             </PopoverContent>
           </Popover>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" disabled={!isClient}>
@@ -585,6 +582,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-4">
            <Button variant="ghost" onClick={handleResetData} disabled={!isClient}>
              <RotateCcw className="mr-2 h-4 w-4" />
              Reset Data
@@ -610,33 +609,33 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         </div>
       )}
       <ScrollArea className="flex-grow border rounded-lg">
-          <Table className="table-fixed">
-            <TableHeader className="sticky top-0 bg-card z-10">
-              <TableRow>
+        <Table className="table-fixed">
+          <TableHeader className="sticky top-0 bg-card z-10">
+            <TableRow>
+              {visibleColumns.map((header) => (
+                <TableHead key={header.key} style={{ width: header.width }}>{header.label}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAssets.map((asset) => (
+              <TableRow key={asset.assetId}>
                 {visibleColumns.map((header) => (
-                  <TableHead key={header.key} className="whitespace-nowrap" style={{ width: header.width }}>{header.label}</TableHead>
+                  <TableCell
+                    key={header.key}
+                    onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
+                    className={cn(
+                      isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : '',
+                      'whitespace-pre-wrap'
+                    )}
+                  >
+                    {renderCellContent(asset, header.key)}
+                  </TableCell>
                 ))}
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAssets.map((asset) => (
-                <TableRow key={asset.assetId}>
-                  {visibleColumns.map((header) => (
-                    <TableCell
-                      key={header.key}
-                      onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
-                      className={cn(
-                        isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : '',
-                        (header.key === 'fieldNotes' || header.key === 'recommendation') && 'whitespace-pre-wrap'
-                      )}
-                    >
-                      {renderCellContent(asset, header.key)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+            ))}
+          </TableBody>
+        </Table>
       </ScrollArea>
     </div>
   );
