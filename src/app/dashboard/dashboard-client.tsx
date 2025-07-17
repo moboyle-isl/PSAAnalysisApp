@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Asset } from '@/lib/data';
 import {
   Table,
@@ -33,6 +33,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Label } from '@/components/ui/label';
 
 type AssetWithRecommendation = Asset & { recommendation?: string };
 
@@ -91,9 +92,20 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     recommendation: true,
   });
 
+  const [systemTypeFilter, setSystemTypeFilter] = useState('all');
+  const [materialFilter, setMaterialFilter] = useState('all');
+
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
   );
+
+  const filteredAssets = useMemo(() => {
+    return assets.filter(asset => {
+      const systemTypeMatch = systemTypeFilter === 'all' || asset.septicSystemType === systemTypeFilter;
+      const materialMatch = materialFilter === 'all' || asset.material === materialFilter;
+      return systemTypeMatch && materialMatch;
+    });
+  }, [assets, systemTypeFilter, materialFilter]);
 
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
@@ -272,7 +284,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-       <div className="flex items-center justify-between">
+       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
            <Button onClick={handleRunRecommendations} disabled={isGenerating}>
             {isGenerating ? (
@@ -283,30 +295,59 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             Run AI Recommendations
           </Button>
         </div>
-         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <View className="mr-2 h-4 w-4" />
-              View
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {ALL_COLUMNS.map((column) => (
-              <DropdownMenuCheckboxItem
-                key={column.key}
-                checked={columnVisibility[column.key]}
-                onCheckedChange={(value) =>
-                  setColumnVisibility((prev) => ({ ...prev, [column.key]: value }))
-                }
-                disabled={column.key === 'assetId'}
-              >
-                {column.label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="system-type-filter" className="text-sm font-medium">System Type</Label>
+            <Select value={systemTypeFilter} onValueChange={setSystemTypeFilter}>
+              <SelectTrigger id="system-type-filter" className="w-[180px]">
+                <SelectValue placeholder="Filter by type..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="Cistern">Cistern</SelectItem>
+                <SelectItem value="Septic Tank">Septic Tank</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="material-filter" className="text-sm font-medium">Material</Label>
+            <Select value={materialFilter} onValueChange={setMaterialFilter}>
+              <SelectTrigger id="material-filter" className="w-[180px]">
+                <SelectValue placeholder="Filter by material..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="Concrete">Concrete</SelectItem>
+                <SelectItem value="Polyethylene">Polyethylene</SelectItem>
+                <SelectItem value="Fibreglass">Fibreglass</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <View className="mr-2 h-4 w-4" />
+                View
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {ALL_COLUMNS.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.key}
+                  checked={columnVisibility[column.key]}
+                  onCheckedChange={(value) =>
+                    setColumnVisibility((prev) => ({ ...prev, [column.key]: value }))
+                  }
+                  disabled={column.key === 'assetId'}
+                >
+                  {column.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <ScrollArea className="flex-grow">
         <div className="relative w-full overflow-auto">
@@ -319,7 +360,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {assets.map((asset) => (
+              {filteredAssets.map((asset) => (
                 <TableRow key={asset.assetId}>
                   {visibleColumns.map((header) => (
                     <TableCell
@@ -339,3 +380,5 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
+
+    
