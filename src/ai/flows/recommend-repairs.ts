@@ -162,6 +162,14 @@ Assets to Analyze:
 
 Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema.
 `,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
 });
 
 const recommendRepairsForAllAssetsFlow = ai.defineFlow(
