@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash, Wand2 } from 'lucide-react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
@@ -22,7 +22,8 @@ export type Rule = {
   ruleType: 'fixed' | 'text';
   operator?: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
   value?: string | number;
-  text?: string;
+  conditionText?: string;
+  recommendationText: string;
 };
 
 const ASSET_COLUMNS = [
@@ -61,13 +62,14 @@ const ruleSchema = z.object({
     ruleType: z.enum(['fixed', 'text']),
     operator: z.string().optional(),
     value: z.union([z.string(), z.number()]).optional(),
-    text: z.string().optional(),
+    conditionText: z.string().optional(),
+    recommendationText: z.string().min(1, 'Please provide a recommendation.'),
 }).refine(data => {
     if (data.ruleType === 'fixed') {
         return !!data.operator && (data.value !== undefined && data.value !== '');
     }
     if (data.ruleType === 'text') {
-        return !!data.text && data.text.length > 0;
+        return !!data.conditionText && data.conditionText.length > 0;
     }
     return false;
 }, {
@@ -91,7 +93,8 @@ export function RulesClient() {
       ruleType: 'fixed',
       operator: undefined,
       value: '',
-      text: '',
+      conditionText: '',
+      recommendationText: '',
     },
   });
 
@@ -105,12 +108,13 @@ export function RulesClient() {
       id: `RULE-${Date.now()}`,
       column: data.column,
       ruleType: data.ruleType,
+      recommendationText: data.recommendationText,
       ...(data.ruleType === 'fixed' && {
         operator: data.operator as Rule['operator'],
         value: selectedColumn?.type === 'number' ? Number(data.value) : data.value,
       }),
       ...(data.ruleType === 'text' && {
-        text: data.text,
+        conditionText: data.conditionText,
       }),
     };
     setRules([...rules, newRule]);
@@ -127,7 +131,7 @@ export function RulesClient() {
 
       if (rule.ruleType === 'text') {
         return (
-            <span>If <span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{rule.text}</span></span>
+            <span>If <span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{rule.conditionText}</span></span>
         );
       }
 
@@ -178,7 +182,7 @@ export function RulesClient() {
                 name="column"
                 render={({ field }) => (
                   <FormItem>
-                    <Label>Asset Data Column</Label>
+                    <Label>If this Asset Column...</Label>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
@@ -201,7 +205,7 @@ export function RulesClient() {
                     name="operator"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Condition</Label>
+                        <Label>Has this condition...</Label>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger><SelectValue placeholder="Select a condition..." /></SelectTrigger>
@@ -221,7 +225,7 @@ export function RulesClient() {
                     name="value"
                     render={({ field }) => (
                       <FormItem>
-                        <Label>Value</Label>
+                        <Label>With this value...</Label>
                         <FormControl>
                           {selectedColumn.type === 'enum' ? (
                              <Select onValueChange={field.onChange} defaultValue={field.value as string}>
@@ -244,14 +248,14 @@ export function RulesClient() {
               {watchRuleType === 'text' && (
                 <FormField
                   control={form.control}
-                  name="text"
+                  name="conditionText"
                   render={({ field }) => (
                     <FormItem>
-                      <Label>Describe the Rule</Label>
+                      <Label>And contains this text...</Label>
                       <FormControl>
-                        <Textarea placeholder="e.g., If field notes mention 'roots', recommend 'Root Intrusion Treatment'." {...field} />
+                        <Textarea placeholder="e.g., 'roots', 'damaged lid'" {...field} />
                       </FormControl>
-                       <p className="text-xs text-muted-foreground">Describe the condition and the action to take in plain text.</p>
+                       <p className="text-xs text-muted-foreground">Provide keywords or phrases to look for.</p>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -260,13 +264,14 @@ export function RulesClient() {
 
                 <FormField
                     control={form.control}
-                    name="text"
+                    name="recommendationText"
                     render={({ field }) => (
                         <FormItem>
                             <Label>Then, recommend...</Label>
                             <FormControl>
                                 <Textarea placeholder="e.g., A full system replacement." {...field} />
                             </FormControl>
+                            <p className="text-xs text-muted-foreground">This is the exact recommendation text the AI will use.</p>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -298,7 +303,7 @@ export function RulesClient() {
                         <Wand2 className="h-5 w-5 text-primary shrink-0 mt-1" />
                         <div className="flex-1">
                             <p className="font-medium">{renderRule(rule)}</p>
-                            <p className="text-sm text-muted-foreground">Then, recommend: <span className="font-semibold">{rule.text}</span></p>
+                            <p className="text-sm text-muted-foreground">Then, recommend: <span className="font-semibold">{rule.recommendationText}</span></p>
                         </div>
                     </div>
                     <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>

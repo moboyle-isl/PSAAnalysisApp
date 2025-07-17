@@ -59,7 +59,7 @@ const RepairPriceSchema = z.object({
 const RecommendRepairsAllAssetsInputSchema = z.object({
     assets: z.array(AssetSchema),
     repairPrices: z.array(RepairPriceSchema).describe("A list of available repair types and their unit prices."),
-    userDefinedRules: z.string().describe('The user-defined rules for repair recommendations.'),
+    userDefinedRules: z.string().describe('A string containing user-defined rules, where each rule is on a new line.'),
 });
 
 export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllAssetsInputSchema>;
@@ -111,32 +111,39 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules. Your most important task is to prioritize the 'fieldNotes' and perform intelligent matching against the available repairs.
+  prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and a set of user-defined rules. Your most important task is to apply the user-defined rules first, and then fall back to intelligent matching against available repairs.
 
 You MUST follow this logic:
-1.  For each asset, first analyze the 'fieldNotes' in combination with the asset's 'septicSystemType' and 'assetSubType'. This provides critical context.
-2.  Intelligently search the 'repairPrices' list for a 'repairType' that addresses the problem described.
-    - Be flexible with wording. For example, if the notes say "damaged lid" or "cracked cover", you should match it to a repair like "Lid Replacement".
-    - Use the asset's type for context. If an asset is a 'Cistern' and the notes mention "tank replacement", you should match it to a "Replace Cistern" repair if available. Consider "tank" and "cistern" to be synonyms in this context.
-3.  If a reasonably confident match is found in the 'repairPrices' list:
-    - Set 'recommendation' to a short summary of that action (e.g., "Replace damaged lid").
-    - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
-    - Set 'estimatedCost' to the corresponding 'unitPrice'.
-    - Set 'needsPrice' to false.
-4.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list, even with contextual matching:
-    - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
-    - Set 'recommendedRepairType' to a new, descriptive name for the repair (e.g., "Tank Crack Repair").
-    - You MUST set 'estimatedCost' to 0.
-    - You MUST set 'needsPrice' to true.
-5.  If and only if the 'fieldNotes' indicate no problems, then you may consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection (e.g., "General Inspection Recommended"). Set 'recommendedRepairType' to "General Inspection", 'estimatedCost' to 0, and 'needsPrice' to true.
-6.  If the 'fieldNotes' are clear (e.g., "OK", "No issues") and condition scores are good, the correct output is to set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0 and 'needsPrice' to false.
+1.  **Apply User-Defined Rules First:** For each asset, check if it matches any of the user-defined rules. The rules are the highest priority. If a rule matches, use the recommendation from that rule and stop further analysis for that asset.
+2.  **Intelligent Matching (if no rule applies):** If no user rule matches, proceed with this logic:
+    a.  Analyze the 'fieldNotes' in combination with the asset's 'septicSystemType' and 'assetSubType'. This provides critical context.
+    b.  Intelligently search the 'repairPrices' list for a 'repairType' that addresses the problem described.
+        - Be flexible with wording and synonyms. For example, "damaged lid", "cracked cover" should match "Lid Replacement". "tank", "container", or "vessel" should match "Cistern" if the asset type is a cistern.
+        - Use the asset's type for context. If an asset is a 'Cistern' and the notes mention "tank replacement", you should match it to a "Replace Cistern" repair if available.
+    c.  If a reasonably confident match is found in the 'repairPrices' list:
+        - Set 'recommendation' to a short summary of that action (e.g., "Replace damaged lid").
+        - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
+        - Set 'estimatedCost' to the corresponding 'unitPrice'.
+        - Set 'needsPrice' to false.
+    d.  If the 'fieldNotes' describe a clear problem but you CANNOT find a matching repair in the 'repairPrices' list, even with contextual matching:
+        - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
+        - Set 'recommendedRepairType' to a new, descriptive name for the repair (e.g., "Tank Crack Repair").
+        - You MUST set 'estimatedCost' to 0.
+        - You MUST set 'needsPrice' to true.
+3.  **General Inspection (Low Priority):** If no rules apply and 'fieldNotes' indicate no problems, you may then consider the numerical condition scores. If scores are low (3 or less), recommend a general inspection (e.g., "General Inspection Recommended"). Set 'recommendedRepairType' to "General Inspection", 'estimatedCost' to 0, and 'needsPrice' to true.
+4.  **No Action Needed:** If no rules apply, the 'fieldNotes' are clear (e.g., "OK", "No issues"), and condition scores are good, the correct output is to set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0 and 'needsPrice' to false.
+
+User-Defined Rules (Highest Priority):
+{{#if userDefinedRules}}
+{{{userDefinedRules}}}
+{{else}}
+No user-defined rules provided.
+{{/if}}
 
 Available Repairs and Prices:
 {{#each repairPrices}}
 - {{repairType}}: \${{unitPrice}}
 {{/each}}
-
-User-Defined Rules: {{{userDefinedRules}}}
 
 Assets to Analyze:
 {{#each assets}}

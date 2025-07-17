@@ -70,6 +70,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import type { Rule } from '@/app/rules/rules-client';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -174,6 +175,7 @@ const newAssetSchema = z.object({
 export function DashboardClient({ data }: { data: Asset[] }) {
   const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
   const [repairPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
+  const [rules] = useLocalStorage<Rule[]>('aiRules', []);
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -349,10 +351,20 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
     try {
+      // Convert rules to a string format for the prompt
+      const rulesString = rules.map(rule => {
+        const columnLabel = ALL_COLUMNS.find(c => c.key === rule.column)?.label || rule.column;
+        if (rule.ruleType === 'fixed') {
+          return `If ${columnLabel} is ${rule.operator} ${rule.value}, then recommend: "${rule.recommendationText}"`;
+        } else {
+          return `If ${columnLabel} contains "${rule.conditionText}", then recommend: "${rule.recommendationText}"`;
+        }
+      }).join('\n');
+
       const result = await recommendRepairsForAllAssets({
         assets: assets,
         repairPrices: repairPrices,
-        userDefinedRules: 'Prioritize repairs that extend life by over 5 years. Replace if repair cost exceeds 60% of new asset cost.',
+        userDefinedRules: rulesString,
       });
 
       const recommendationsMap = new Map(
