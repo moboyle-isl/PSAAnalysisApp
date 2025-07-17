@@ -55,6 +55,7 @@ type Column = {
   label: string;
   type: 'string' | 'number' | 'enum';
   options?: string[];
+  width?: string;
 };
 
 const ALL_COLUMNS: Column[] = [
@@ -74,8 +75,8 @@ const ALL_COLUMNS: Column[] = [
     { key: 'collarCondition', label: 'Collar Condition', type: 'number' },
     { key: 'interiorCondition', label: 'Interior Condition', type: 'number' },
     { key: 'overallCondition', label: 'Overall Condition', type: 'number' },
-    { key: 'fieldNotes', label: 'Field Notes', type: 'string' },
-    { key: 'recommendation', label: 'AI Recommendation', type: 'string' },
+    { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
+    { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
     { key: 'estimatedCost', label: 'Est. Cost', type: 'number' },
 ];
 
@@ -322,7 +323,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key, newValue);
+              handleValuechange(asset.assetId, key, newValue);
               setEditingCell(null);
             }}
           >
@@ -414,7 +415,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     if (key === 'recommendation') {
       return (
         <div>
-          <span className="truncate">{String(value ?? '')}</span>
+          <span className="whitespace-pre-wrap">{String(value ?? '')}</span>
           {asset.needsPrice && (
             <p className="text-xs text-destructive">
               Please add a price for this repair in the Price Configuration tool.
@@ -422,6 +423,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           )}
         </div>
       );
+    }
+    
+    if (key === 'fieldNotes') {
+        return <span className="whitespace-pre-wrap">{String(value ?? '')}</span>;
     }
 
     return <span className="truncate">{String(value ?? '')}</span>;
@@ -605,11 +610,11 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       )}
       <ScrollArea className="flex-grow">
         <div className="relative w-full overflow-auto">
-          <Table className="min-w-max">
+          <Table className="min-w-max table-fixed">
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 {visibleColumns.map((header) => (
-                  <TableHead key={header.key} className="whitespace-nowrap">{header.label}</TableHead>
+                  <TableHead key={header.key} className="whitespace-nowrap" style={{ width: header.width }}>{header.label}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -634,3 +639,5 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
+
+    
