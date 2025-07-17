@@ -53,6 +53,7 @@ const RepairPriceSchema = z.object({
     id: z.string(),
     repairType: z.string(),
     unitPrice: z.number(),
+    description: z.string().optional(),
 });
 
 const RecommendRepairsAllAssetsInputSchema = z.object({
@@ -132,8 +133,6 @@ You MUST follow this logic:
 Available Repairs and Prices:
 {{#each repairPrices}}
 - {{repairType}}: \${{unitPrice}}
-{{else}}
-- No prices provided.
 {{/each}}
 
 User-Defined Rules: {{{userDefinedRules}}}

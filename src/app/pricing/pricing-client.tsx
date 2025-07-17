@@ -26,6 +26,7 @@ import { Plus, Trash, Pencil } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 
 export function PricingClient() {
   const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
@@ -45,6 +46,7 @@ export function PricingClient() {
       id: editingPrice?.id || `REPAIR-${Date.now()}`,
       repairType: formData.get('repairType') as string,
       unitPrice: Number(formData.get('unitPrice')),
+      description: formData.get('repairDescription') as string,
     };
 
     let updatedPrices;
@@ -92,6 +94,10 @@ export function PricingClient() {
                 <Label htmlFor="unitPrice">Unit Price ($)</Label>
                 <Input id="unitPrice" name="unitPrice" type="number" step="0.01" defaultValue={editingPrice?.unitPrice || ''} required />
               </div>
+               <div className="space-y-2">
+                <Label htmlFor="repairDescription">Repair Description</Label>
+                <Textarea id="repairDescription" name="repairDescription" defaultValue={editingPrice?.description || ''} placeholder="Describe the repair and assumptions for the cost..." />
+              </div>
               <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
                 <Button type="submit">{editingPrice ? 'Save Changes' : 'Add Price'}</Button>
@@ -114,11 +120,13 @@ export function PricingClient() {
           </TableHeader>
           <TableBody>
             {!isClient ? (
-              <TableRow>
+               Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={index}>
                   <TableCell colSpan={3}>
-                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-12 w-full" />
                   </TableCell>
-              </TableRow>
+                </TableRow>
+              ))
             ) : prices.length === 0 ? (
                <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
@@ -128,9 +136,14 @@ export function PricingClient() {
             ) : (
               prices.map((price) => (
                 <TableRow key={price.id}>
-                  <TableCell className="font-medium">{price.repairType}</TableCell>
-                  <TableCell>${price.unitPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="font-medium align-top">
+                    <div className="font-bold">{price.repairType}</div>
+                    {price.description && (
+                      <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{price.description}</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="align-top">${price.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right align-top">
                     <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(price)}>
                       <Pencil className="h-4 w-4" />
                       <span className="sr-only">Edit</span>

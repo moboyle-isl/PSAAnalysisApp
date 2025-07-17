@@ -23,6 +23,7 @@ export type RepairPrice = {
   id: string;
   repairType: string;
   unitPrice: number;
+  description: string;
 };
 
 export const initialAssets: Asset[] = [
@@ -125,10 +126,10 @@ export const initialAssets: Asset[] = [
 
 
 export const initialRepairPrices: RepairPrice[] = [
-  { id: 'REPAIR-01', repairType: 'Pump Seal Replacement', unitPrice: 500 },
-  { id: 'REPAIR-02', repairType: 'Pump Impeller Replacement', unitPrice: 1200 },
-  { id: 'REPAIR-03', repairType: 'Valve Gasket Replacement', unitPrice: 250 },
-  { id: 'REPAIR-04', repairType: 'Pipe Patching (per foot)', unitPrice: 150 },
-  { id: 'REPAIR-05', repairType: 'Full Pipe Section Replacement (per foot)', unitPrice: 400 },
-  { id: 'REPAIR-06', repairType: 'Tank Relining', unitPrice: 5000 },
+  { id: 'REPAIR-01', repairType: 'Pump Seal Replacement', unitPrice: 500, description: 'Replacement of the main pump seal to prevent leaks.' },
+  { id: 'REPAIR-02', repairType: 'Pump Impeller Replacement', unitPrice: 1200, description: 'Full replacement of the pump impeller assembly.' },
+  { id: 'REPAIR-03', repairType: 'Valve Gasket Replacement', unitPrice: 250, description: 'Replacement of worn gaskets on primary valves.' },
+  { id: 'REPAIR-04', repairType: 'Pipe Patching (per foot)', unitPrice: 150, description: 'Minor pipe repair for small cracks or holes. Price is per linear foot.' },
+  { id: 'REPAIR-05', repairType: 'Full Pipe Section Replacement (per foot)', unitPrice: 400, description: 'Complete replacement of a damaged pipe section. Price is per linear foot.' },
+  { id: 'REPAIR-06', repairType: 'Tank Relining', unitPrice: 5000, description: 'Application of a new interior lining to a concrete tank to seal cracks and prevent leaks.' },
 ];
