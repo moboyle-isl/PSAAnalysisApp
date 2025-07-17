@@ -13,7 +13,7 @@ import { Plus, Trash, Wand2, Pencil, GripVertical, CircleHelp } from 'lucide-rea
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage, FormLabel } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
@@ -197,7 +197,7 @@ export function RulesClient() {
 }
   
   const renderRule = (rule: Rule) => {
-      if (!rule.conditions) {
+      if (!rule.conditions || !Array.isArray(rule.conditions)) {
         return null; // Defensive check
       }
       const conditions = rule.conditions.map((cond, index) => {
