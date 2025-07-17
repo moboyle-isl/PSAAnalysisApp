@@ -1072,7 +1072,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 <TableHead key={header.key} style={{ width: header.width }} className={header.type !== 'action' ? 'cursor-pointer' : ''} onClick={() => header.type !== 'action' && requestSort(header.key as keyof AssetWithRecommendation)}>
                   <div className="flex items-center gap-2">
                     {header.label}
-                    {sortConfig?.key === header.key && (
+                    {isClient && sortConfig?.key === header.key && (
                        sortConfig.direction === 'ascending' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
                     )}
                   </div>
