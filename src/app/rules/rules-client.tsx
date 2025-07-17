@@ -9,8 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash, Wand2, Pencil } from 'lucide-react';
-import { useForm } from 'react-hook-form';
+import { Plus, Trash, Wand2, Pencil, GripVertical, CircleHelp } from 'lucide-react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
@@ -23,19 +23,35 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-export type Rule = {
-  id: string;
+export type Condition = {
+  id?: string;
   column: string;
   ruleType: 'fixed' | 'text';
   operator?: 'eq' | 'neq' | 'gt' | 'lt' | 'gte' | 'lte' | 'contains';
   value?: string | number;
   conditionText?: string;
+};
+
+export type Rule = {
+  id: string;
+  conditions: Condition[];
+  logicalOperator: 'AND' | 'OR';
   recommendationText: string;
 };
 
-const ASSET_COLUMNS = [
+export const ASSET_COLUMNS = [
     { key: 'yearInstalled', label: 'Year Installed', type: 'number' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
     { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
@@ -53,7 +69,7 @@ const ASSET_COLUMNS = [
     { key: 'fieldNotes', label: 'Field Notes', type: 'string' },
 ];
 
-const OPERATORS = {
+export const OPERATORS = {
   string: [ { value: 'contains', label: 'Contains' } ],
   number: [
     { value: 'eq', label: '=' },
@@ -66,32 +82,37 @@ const OPERATORS = {
   enum: [ { value: 'eq', label: 'Is' }, { value: 'neq', label: 'Is not' } ],
 };
 
-const ruleSchema = z.object({
+const conditionSchema = z.object({
+    id: z.string().optional(),
     column: z.string().min(1, 'Please select a column.'),
     ruleType: z.enum(['fixed', 'text']),
     operator: z.string().optional(),
     value: z.union([z.string(), z.number()]).optional(),
     conditionText: z.string().optional(),
-    recommendationText: z.string().min(1, 'Please provide a recommendation.'),
 }).refine(data => {
     const selectedColumn = ASSET_COLUMNS.find(c => c.key === data.column);
-    if (!selectedColumn) return false;
+    if (!selectedColumn) return true; // Let main schema handle required column
 
-    if (data.ruleType === 'fixed') {
-        if (selectedColumn.type === 'enum') {
-            return !!data.operator && (data.value !== undefined && data.value !== '');
-        }
+    if (selectedColumn.type === 'string') {
+        return !!data.conditionText;
+    }
+
+    if (selectedColumn.type === 'number' || selectedColumn.type === 'enum') {
         return !!data.operator && (data.value !== undefined && data.value !== '');
     }
-    if (data.ruleType === 'text') {
-        return !!data.conditionText && data.conditionText.length > 0;
-    }
+    
     return false;
 }, {
-    message: "Please complete the required fields for the selected rule type.",
-    path: ['value'], // Or a more appropriate path
+    message: "Please provide a value for the condition.",
+    path: ["value"],
 });
 
+
+const ruleSchema = z.object({
+    conditions: z.array(conditionSchema).min(1, "Please add at least one condition."),
+    logicalOperator: z.enum(['AND', 'OR']),
+    recommendationText: z.string().min(1, 'Please provide a recommendation.'),
+})
 
 export function RulesClient() {
   const [rules, setRules] = useLocalStorage<Rule[]>('aiRules', []);
@@ -106,51 +127,44 @@ export function RulesClient() {
   const form = useForm<z.infer<typeof ruleSchema>>({
     resolver: zodResolver(ruleSchema),
     defaultValues: {
-      column: '',
-      ruleType: 'fixed',
-      operator: undefined,
-      value: '',
-      conditionText: '',
-      recommendationText: '',
+        conditions: [],
+        logicalOperator: 'AND',
+        recommendationText: '',
     },
   });
 
-  const watchRuleType = form.watch('ruleType');
-  const watchColumn = form.watch('column');
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "conditions"
+  });
 
-  const selectedColumn = ASSET_COLUMNS.find(c => c.key === watchColumn);
+  const watchConditions = form.watch('conditions');
   
-  // Reset form when column type changes to avoid invalid operator/value combinations
-  useEffect(() => {
-    if (selectedColumn && form.formState.isSubmitted === false) {
-      form.reset({
-        ...form.getValues(),
+  const handleAddNewCondition = () => {
+    const firstColumn = ASSET_COLUMNS[0];
+    append({
+        column: firstColumn.key,
+        ruleType: firstColumn.type === 'string' ? 'text' : 'fixed',
         operator: undefined,
         value: '',
-      });
+        conditionText: ''
+    });
+  };
+
+  useEffect(() => {
+    if (isDialogOpen && fields.length === 0) {
+        handleAddNewCondition();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchColumn, form, selectedColumn]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDialogOpen, fields.length]);
+
 
   function onSubmit(data: z.infer<typeof ruleSchema>) {
-    const ruleData = {
-      ...data,
-      ...(data.ruleType === 'fixed' && {
-        operator: data.operator as Rule['operator'],
-        value: selectedColumn?.type === 'number' ? Number(data.value) : data.value,
-      }),
-      ...(data.ruleType === 'text' && {
-        conditionText: data.conditionText,
-      }),
-    };
-
     if (editingRule) {
-      // Update existing rule
-      const updatedRule: Rule = { ...editingRule, ...ruleData };
+      const updatedRule: Rule = { ...editingRule, ...data };
       setRules(rules.map(r => r.id === editingRule.id ? updatedRule : r));
     } else {
-      // Add new rule
-      const newRule: Rule = { id: `RULE-${Date.now()}`, ...ruleData };
+      const newRule: Rule = { id: `RULE-${Date.now()}`, ...data };
       setRules([...rules, newRule]);
     }
     
@@ -167,20 +181,14 @@ export function RulesClient() {
     setEditingRule(rule);
     if (rule) {
       form.reset({
-        column: rule.column,
-        ruleType: rule.ruleType,
-        operator: rule.operator,
-        value: rule.value,
-        conditionText: rule.conditionText,
+        conditions: rule.conditions,
+        logicalOperator: rule.logicalOperator,
         recommendationText: rule.recommendationText,
       });
     } else {
       form.reset({
-        column: '',
-        ruleType: 'fixed',
-        operator: undefined,
-        value: '',
-        conditionText: '',
+        conditions: [],
+        logicalOperator: 'AND',
         recommendationText: '',
       });
     }
@@ -188,27 +196,43 @@ export function RulesClient() {
   }
   
   const renderRule = (rule: Rule) => {
-      const column = ASSET_COLUMNS.find(c => c.key === rule.column);
-      if (!column) return null;
+      const conditions = rule.conditions.map((cond, index) => {
+        const column = ASSET_COLUMNS.find(c => c.key === cond.column);
+        if (!column) return null;
+        
+        let conditionStr = '';
+        if (column.type === 'string') {
+             conditionStr = <span><span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{cond.conditionText}</span></span>
+        } else {
+            const operator = [...OPERATORS.number, ...OPERATORS.enum].find(o => o.value === cond.operator);
+            conditionStr = <span><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{String(cond.value)}</span></span>
+        }
 
-      if (rule.ruleType === 'text') {
         return (
-            <span>If <span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{rule.conditionText}</span></span>
-        );
-      }
+            <span key={index} className="block">
+                {conditionStr}
+            </span>
+        )
+      });
+      
+      const operator = <span className="font-bold mx-2">{rule.logicalOperator}</span>;
 
-      if (rule.ruleType === 'fixed') {
-          const operator = [...OPERATORS.number, ...OPERATORS.enum, ...OPERATORS.string].find(o => o.value === rule.operator);
-          return (
-            <span>If <span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{String(rule.value)}</span></span>
-          )
-      }
-
-      return null;
+      return (
+        <div>
+            <span className="font-medium">If:</span>
+            <div className="pl-4">
+                {conditions.reduce((prev, curr, i) => (
+                    // @ts-ignore
+                    [prev, (i > 0 ? <div key={`op-${i}`}>{operator}</div> : null), curr]
+                ), [])}
+            </div>
+        </div>
+      )
   }
 
   return (
     <div className="space-y-8">
+    <TooltipProvider>
       <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setEditingRule(null);
@@ -216,134 +240,191 @@ export function RulesClient() {
           }
           setIsDialogOpen(isOpen);
       }}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingRule ? 'Edit Rule' : 'Create a New Rule'}</DialogTitle>
-            <CardDescription>
-              Build rules to guide the AI. For example: "If Overall Condition is less than 3, then recommend a full system replacement."
-            </CardDescription>
+            <DialogDescription>
+              Build rules with one or more conditions to guide the AI. 
+              For example: "If System Type = Septic Tank AND Setback Water (m) &lt; 10..."
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              <FormField
-                control={form.control}
-                name="ruleType"
-                render={({ field }) => (
-                  <FormItem>
-                    <Label>Rule Type</Label>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="fixed">Fixed Value</SelectItem>
-                        <SelectItem value="text">Text Input</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              
+              <div className="space-y-4 p-4 border rounded-lg">
+                <Label className="font-semibold">Conditions</Label>
+                
+                {fields.map((field, index) => {
+                    const selectedColumnKey = watchConditions[index]?.column;
+                    const selectedColumn = ASSET_COLUMNS.find(c => c.key === selectedColumnKey);
 
-              <FormField
-                control={form.control}
-                name="column"
-                render={({ field }) => (
-                  <FormItem>
-                    <Label>If this Asset Column...</Label>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {ASSET_COLUMNS.map(col => (
-                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    return (
+                        <div key={field.id} className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
+                            <GripVertical className="h-5 w-5 text-muted-foreground mt-9 shrink-0" />
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name={`conditions.${index}.column`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <Label>If Column...</Label>
+                                        <Select 
+                                            onValueChange={(value) => {
+                                                const newSelectedColumn = ASSET_COLUMNS.find(c => c.key === value);
+                                                const newRuleType = newSelectedColumn?.type === 'string' ? 'text' : 'fixed';
+                                                form.setValue(`conditions.${index}.ruleType`, newRuleType);
+                                                field.onChange(value);
+                                            }} 
+                                            value={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {ASSET_COLUMNS.map(col => (
+                                            <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
 
-              {watchRuleType === 'fixed' && selectedColumn && (
-                <>
+                                {selectedColumn && selectedColumn.type !== 'string' && (
+                                    <>
+                                        <FormField
+                                            control={form.control}
+                                            name={`conditions.${index}.operator`}
+                                            render={({ field }) => (
+                                            <FormItem>
+                                                <Label>Is...</Label>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {OPERATORS[selectedColumn.type as keyof typeof OPERATORS]?.map(op => (
+                                                    <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`conditions.${index}.value`}
+                                            render={({ field }) => (
+                                            <FormItem>
+                                                <Label>Than...</Label>
+                                                <FormControl>
+                                                {selectedColumn.type === 'enum' ? (
+                                                    <Select onValueChange={field.onChange} value={field.value as string}>
+                                                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <Input placeholder="Enter value" {...field} type="number" value={field.value ?? ''} />
+                                                )}
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                            )}
+                                        />
+                                    </>
+                                )}
+                                 {selectedColumn && selectedColumn.type === 'string' && (
+                                     <FormField
+                                        control={form.control}
+                                        name={`conditions.${index}.conditionText`}
+                                        render={({ field }) => (
+                                            <FormItem className="md:col-span-2">
+                                            <Label>And contains this text...</Label>
+                                            <FormControl>
+                                                <Input placeholder="e.g., 'roots', 'damaged lid'" {...field} value={field.value ?? ''} />
+                                            </FormControl>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                 )}
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive mt-7" onClick={() => remove(index)}>
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )
+                })}
+                 <Button type="button" variant="outline" size="sm" onClick={handleAddNewCondition}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Condition
+                </Button>
+              </div>
+
+               {fields.length > 1 && (
                   <FormField
                     control={form.control}
-                    name="operator"
+                    name="logicalOperator"
                     render={({ field }) => (
-                      <FormItem>
-                        <Label>Has this condition...</Label>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger><SelectValue placeholder="Select a condition..." /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {OPERATORS[selectedColumn.type as keyof typeof OPERATORS]?.map(op => (
-                              <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="value"
-                    render={({ field }) => (
-                      <FormItem>
-                        <Label>With this value...</Label>
+                      <FormItem className="space-y-3">
+                        <Label className="font-semibold">Logical Operator</Label>
                         <FormControl>
-                          {selectedColumn.type === 'enum' ? (
-                             <Select onValueChange={field.onChange} value={field.value as string}>
-                                <SelectTrigger><SelectValue placeholder="Select a value..." /></SelectTrigger>
-                                <SelectContent>
-                                    {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                          ) : (
-                            <Input placeholder="Enter a value" {...field} type={selectedColumn.type === 'number' ? 'number' : 'text'} value={field.value ?? ''} />
-                          )}
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex items-center gap-4"
+                          >
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="AND" />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                AND <span className="text-xs text-muted-foreground ml-1">(all conditions must be met)</span>
+                              </FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-2 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="OR" />
+                              </FormControl>
+                              <FormLabel className="font-normal">
+                                OR <span className="text-xs text-muted-foreground ml-1">(any condition can be met)</span>
+                              </FormLabel>
+                            </FormItem>
+                          </RadioGroup>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
-                  />
-                </>
-              )}
-
-              {watchRuleType === 'text' && (
-                <FormField
-                  control={form.control}
-                  name="conditionText"
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label>And contains this text...</Label>
-                      <FormControl>
-                        <Textarea placeholder="e.g., 'roots', 'damaged lid'" {...field} value={field.value ?? ''} />
-                      </FormControl>
-                       <p className="text-xs text-muted-foreground">Provide keywords or phrases to look for.</p>
-                      <FormMessage />
-                    </FormItem>
-                  )}
                 />
-              )}
-
-              <FormField
-                  control={form.control}
-                  name="recommendationText"
-                  render={({ field }) => (
-                      <FormItem>
-                          <Label>Then, recommend...</Label>
-                          <FormControl>
-                              <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground">This is the exact recommendation text the AI will use.</p>
-                          <FormMessage />
-                      </FormItem>
-                  )}
-              />
+               )}
+              
+               <div className="space-y-2 p-4 border rounded-lg">
+                <FormField
+                    control={form.control}
+                    name="recommendationText"
+                    render={({ field }) => (
+                        <FormItem>
+                            <Label className="font-semibold flex items-center gap-2">
+                                Then, Recommend...
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <CircleHelp className="h-4 w-4 text-muted-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </Label>
+                            <FormControl>
+                                <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+              </div>
 
               <DialogFooter>
                   <DialogClose asChild>
@@ -377,11 +458,12 @@ export function RulesClient() {
               <ul className="space-y-4">
                 {rules.map(rule => (
                   <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-start gap-3">
                         <Wand2 className="h-5 w-5 text-primary shrink-0 mt-1" />
                         <div className="flex-1">
-                            <p className="font-medium">{renderRule(rule)}</p>
-                            <p className="text-sm text-muted-foreground">Then, recommend: <span className="font-semibold">{rule.recommendationText}</span></p>
+                            {renderRule(rule)}
+                            <Separator className="my-2" />
+                            <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
                         </div>
                     </div>
                     <div className="flex items-center">
@@ -405,13 +487,13 @@ export function RulesClient() {
             )
           ) : (
             <div className="space-y-2">
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
-                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
             </div>
           )}
         </CardContent>
       </Card>
+      </TooltipProvider>
     </div>
   );
 }

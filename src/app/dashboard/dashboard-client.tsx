@@ -71,6 +71,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Rule } from '@/app/rules/rules-client';
+import { ASSET_COLUMNS } from '@/app/rules/rules-client';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -366,14 +367,18 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     try {
       // Convert rules to a string format for the prompt
       const rulesString = rules.map(rule => {
-        const columnLabel = ALL_COLUMNS.find(c => c.key === rule.column)?.label || rule.column;
-        if (rule.ruleType === 'fixed' && rule.operator) {
-          const operatorText = OPERATOR_TEXT_MAP[rule.operator] || rule.operator;
-          return `If ${columnLabel} ${operatorText} ${rule.value}, then recommend: "${rule.recommendationText}"`;
-        } else if (rule.ruleType === 'text' && rule.conditionText) {
-          return `If ${columnLabel} contains "${rule.conditionText}", then recommend: "${rule.recommendationText}"`;
-        }
-        return '';
+        const conditionsString = rule.conditions.map(condition => {
+            const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
+            if (condition.ruleType === 'fixed' && condition.operator) {
+                const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+                return `${columnLabel} ${operatorText} ${condition.value}`;
+            } else if (condition.ruleType === 'text' && condition.conditionText) {
+                return `${columnLabel} contains "${condition.conditionText}"`;
+            }
+            return '';
+        }).filter(Boolean).join(` ${rule.logicalOperator} `);
+
+        return `If (${conditionsString}), then recommend: "${rule.recommendationText}"`;
       }).filter(Boolean).join('\n');
 
       const result = await recommendRepairsForAllAssets({
