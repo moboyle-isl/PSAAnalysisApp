@@ -22,17 +22,78 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2 } from 'lucide-react';
+import { Wand2, Loader2, View } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 type AssetWithRecommendation = Asset & { recommendation?: string };
+
+type Column = {
+  key: keyof AssetWithRecommendation;
+  label: string;
+};
+
+const ALL_COLUMNS: Column[] = [
+    { key: 'assetId', label: 'Asset ID' },
+    { key: 'address', label: 'Address' },
+    { key: 'yearInstalled', label: 'Year Installed' },
+    { key: 'material', label: 'Material' },
+    { key: 'septicSystemType', label: 'System Type' },
+    { key: 'assetSubType', label: 'Sub-Type' },
+    { key: 'setbackFromWaterSource', label: 'Setback Water (m)' },
+    { key: 'setbackFromHouse', label: 'Setback House (m)' },
+    { key: 'tankBuryDepth', label: 'Bury Depth (m)' },
+    { key: 'openingSize', label: 'Opening Size (m)' },
+    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)' },
+    { key: 'siteCondition', label: 'Site Condition' },
+    { key: 'coverCondition', label: 'Cover Condition' },
+    { key: 'collarCondition', label: 'Collar Condition' },
+    { key: 'interiorCondition', label: 'Interior Condition' },
+    { key: 'overallCondition', label: 'Overall Condition' },
+    { key: 'fieldNotes', label: 'Field Notes' },
+    { key: 'recommendation', label: 'AI Recommendation' },
+];
+
 
 export function DashboardClient({ data }: { data: Asset[] }) {
   const [assets, setAssets] = useState<AssetWithRecommendation[]>(data);
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<keyof AssetWithRecommendation, boolean>
+  >({
+    assetId: true,
+    address: true,
+    yearInstalled: true,
+    material: true,
+    septicSystemType: true,
+    assetSubType: true,
+    setbackFromWaterSource: false,
+    setbackFromHouse: false,
+    tankBuryDepth: false,
+    openingSize: false,
+    aboveGroundCollarHeight: false,
+    siteCondition: true,
+    coverCondition: true,
+    collarCondition: true,
+    interiorCondition: true,
+    overallCondition: true,
+    fieldNotes: true,
+    recommendation: true,
+  });
+
+  const visibleColumns = ALL_COLUMNS.filter(
+    (column) => columnVisibility[column.key]
+  );
 
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
@@ -209,45 +270,50 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     return true;
   }
 
-  const headers: { key: keyof AssetWithRecommendation; label: string }[] = [
-    { key: 'assetId', label: 'Asset ID' },
-    { key: 'address', label: 'Address' },
-    { key: 'yearInstalled', label: 'Year Installed' },
-    { key: 'material', label: 'Material' },
-    { key: 'septicSystemType', label: 'System Type' },
-    { key: 'assetSubType', label: 'Sub-Type' },
-    { key: 'setbackFromWaterSource', label: 'Setback Water (m)' },
-    { key: 'setbackFromHouse', label: 'Setback House (m)' },
-    { key: 'tankBuryDepth', label: 'Bury Depth (m)' },
-    { key: 'openingSize', label: 'Opening Size (m)' },
-    { key: 'aboveGroundCollarHeight', label: 'Collar Height (m)' },
-    { key: 'siteCondition', label: 'Site Condition' },
-    { key: 'coverCondition', label: 'Cover Condition' },
-    { key: 'collarCondition', label: 'Collar Condition' },
-    { key: 'interiorCondition', label: 'Interior Condition' },
-    { key: 'overallCondition', label: 'Overall Condition' },
-    { key: 'fieldNotes', label: 'Field Notes' },
-    { key: 'recommendation', label: 'AI Recommendation' },
-  ];
-
   return (
     <div className="flex flex-col h-full space-y-4">
-       <div className="flex justify-start">
-         <Button onClick={handleRunRecommendations} disabled={isGenerating}>
-          {isGenerating ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Wand2 className="mr-2 h-4 w-4" />
-          )}
-          Run AI Recommendations
-        </Button>
+       <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+           <Button onClick={handleRunRecommendations} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Wand2 className="mr-2 h-4 w-4" />
+            )}
+            Run AI Recommendations
+          </Button>
+        </div>
+         <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline">
+              <View className="mr-2 h-4 w-4" />
+              View
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {ALL_COLUMNS.map((column) => (
+              <DropdownMenuCheckboxItem
+                key={column.key}
+                checked={columnVisibility[column.key]}
+                onCheckedChange={(value) =>
+                  setColumnVisibility((prev) => ({ ...prev, [column.key]: value }))
+                }
+                disabled={column.key === 'assetId'}
+              >
+                {column.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <ScrollArea className="flex-grow">
         <div className="relative w-full overflow-auto">
           <Table className="min-w-max">
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
-                {headers.map((header) => (
+                {visibleColumns.map((header) => (
                   <TableHead key={header.key} className="whitespace-nowrap">{header.label}</TableHead>
                 ))}
               </TableRow>
@@ -255,7 +321,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             <TableBody>
               {assets.map((asset) => (
                 <TableRow key={asset.assetId}>
-                  {headers.map((header) => (
+                  {visibleColumns.map((header) => (
                     <TableCell
                       key={header.key}
                       onClick={() => isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
