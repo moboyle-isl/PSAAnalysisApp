@@ -323,7 +323,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValuechange(asset.assetId, key, newValue);
+              handleValueChange(asset.assetId, key as keyof Asset, newValue);
               setEditingCell(null);
             }}
           >
@@ -414,8 +414,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     
     if (key === 'recommendation') {
       return (
-        <div>
-          <span className="whitespace-pre-wrap">{String(value ?? '')}</span>
+        <div className="whitespace-pre-wrap">
+          <span>{String(value ?? '')}</span>
           {asset.needsPrice && (
             <p className="text-xs text-destructive">
               Please add a price for this repair in the Price Configuration tool.
@@ -639,5 +639,3 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
-
-    
