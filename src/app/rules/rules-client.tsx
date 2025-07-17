@@ -133,7 +133,7 @@ export function RulesClient() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "conditions"
   });
@@ -180,22 +180,26 @@ export function RulesClient() {
   const handleOpenDialog = (rule: Rule | null = null) => {
     setEditingRule(rule);
     if (rule) {
-      form.reset({
-        conditions: rule.conditions,
-        logicalOperator: rule.logicalOperator,
-        recommendationText: rule.recommendationText,
-      });
+        // use 'replace' from useFieldArray to properly set the fields
+        replace(rule.conditions);
+        form.reset({
+            ...rule,
+        });
     } else {
-      form.reset({
-        conditions: [],
-        logicalOperator: 'AND',
-        recommendationText: '',
-      });
+        replace([]); // Clear existing fields
+        form.reset({
+            conditions: [],
+            logicalOperator: 'AND',
+            recommendationText: '',
+        });
     }
     setIsDialogOpen(true);
-  }
+}
   
   const renderRule = (rule: Rule) => {
+      if (!rule.conditions) {
+        return null; // Defensive check
+      }
       const conditions = rule.conditions.map((cond, index) => {
         const column = ASSET_COLUMNS.find(c => c.key === cond.column);
         if (!column) return null;
@@ -267,7 +271,7 @@ export function RulesClient() {
                                     name={`conditions.${index}.column`}
                                     render={({ field }) => (
                                     <FormItem>
-                                        <Label>If Column...</Label>
+                                        <FormLabel>If Column...</FormLabel>
                                         <Select 
                                             onValueChange={(value) => {
                                                 const newSelectedColumn = ASSET_COLUMNS.find(c => c.key === value);
@@ -295,10 +299,10 @@ export function RulesClient() {
                                         <FormField
                                             control={form.control}
                                             name={`conditions.${index}.operator`}
-                                            render={({ field }) => (
+                                            render={({ field: fieldOp }) => (
                                             <FormItem>
-                                                <Label>Is...</Label>
-                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormLabel>Is...</FormLabel>
+                                                <Select onValueChange={fieldOp.onChange} value={fieldOp.value}>
                                                 <FormControl>
                                                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                                 </FormControl>
@@ -315,19 +319,19 @@ export function RulesClient() {
                                         <FormField
                                             control={form.control}
                                             name={`conditions.${index}.value`}
-                                            render={({ field }) => (
+                                            render={({ field: fieldValue }) => (
                                             <FormItem>
-                                                <Label>Than...</Label>
+                                                <FormLabel>Than...</FormLabel>
                                                 <FormControl>
                                                 {selectedColumn.type === 'enum' ? (
-                                                    <Select onValueChange={field.onChange} value={field.value as string}>
+                                                    <Select onValueChange={fieldValue.onChange} value={fieldValue.value as string}>
                                                         <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                                         <SelectContent>
                                                             {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
                                                         </SelectContent>
                                                     </Select>
                                                 ) : (
-                                                    <Input placeholder="Enter value" {...field} type="number" value={field.value ?? ''} />
+                                                    <Input placeholder="Enter value" {...fieldValue} type="number" value={fieldValue.value ?? ''} />
                                                 )}
                                                 </FormControl>
                                                 <FormMessage />
@@ -340,11 +344,11 @@ export function RulesClient() {
                                      <FormField
                                         control={form.control}
                                         name={`conditions.${index}.conditionText`}
-                                        render={({ field }) => (
+                                        render={({ field: fieldText }) => (
                                             <FormItem className="md:col-span-2">
-                                            <Label>And contains this text...</Label>
+                                            <FormLabel>And contains this text...</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="e.g., 'roots', 'damaged lid'" {...field} value={field.value ?? ''} />
+                                                <Input placeholder="e.g., 'roots', 'damaged lid'" {...fieldText} value={fieldText.value ?? ''} />
                                             </FormControl>
                                             <FormMessage />
                                             </FormItem>
@@ -369,7 +373,7 @@ export function RulesClient() {
                     name="logicalOperator"
                     render={({ field }) => (
                       <FormItem className="space-y-3">
-                        <Label className="font-semibold">Logical Operator</Label>
+                        <FormLabel className="font-semibold">Logical Operator</FormLabel>
                         <FormControl>
                           <RadioGroup
                             onValueChange={field.onChange}
@@ -406,7 +410,7 @@ export function RulesClient() {
                     name="recommendationText"
                     render={({ field }) => (
                         <FormItem>
-                            <Label className="font-semibold flex items-center gap-2">
+                            <FormLabel className="font-semibold flex items-center gap-2">
                                 Then, Recommend...
                                 <Tooltip>
                                     <TooltipTrigger asChild>
@@ -416,7 +420,7 @@ export function RulesClient() {
                                         <p className="max-w-xs">This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost.</p>
                                     </TooltipContent>
                                 </Tooltip>
-                            </Label>
+                            </FormLabel>
                             <FormControl>
                                 <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
                             </FormControl>
