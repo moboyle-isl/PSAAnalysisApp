@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
 import {
@@ -31,7 +31,6 @@ function loadPricesFromCookie(): RepairPrice[] {
   if (cookie) {
     try {
       const parsed = JSON.parse(cookie);
-      // An empty array is a valid state, so we check if it's an array.
       if (Array.isArray(parsed)) {
         return parsed;
       }
@@ -46,9 +45,16 @@ function loadPricesFromCookie(): RepairPrice[] {
 
 
 export function PricingClient() {
-  const [prices, setPrices] = useState<RepairPrice[]>(() => loadPricesFromCookie());
+  const [prices, setPrices] = useState<RepairPrice[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    // This effect runs only on the client, after hydration
+    setPrices(loadPricesFromCookie());
+    setIsClient(true);
+  }, []);
 
   const updatePrices = (newPrices: RepairPrice[]) => {
     setPrices(newPrices);
@@ -90,7 +96,7 @@ export function PricingClient() {
       <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog(null)}>
+            <Button onClick={() => handleOpenDialog(null)} disabled={!isClient}>
               <Plus className="mr-2 h-4 w-4" />
               Add New Repair
             </Button>
@@ -126,22 +132,30 @@ export function PricingClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {prices.map((price) => (
-              <TableRow key={price.id}>
-                <TableCell className="font-medium">{price.repairType}</TableCell>
-                <TableCell>${price.unitPrice.toFixed(2)}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(price)}>
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Edit</span>
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeletePrice(price.id)}>
-                    <Trash className="h-4 w-4" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {prices.length === 0 && isClient ? (
+               <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                    No repair prices configured. Click "Add New Repair" to get started.
+                  </TableCell>
+                </TableRow>
+            ) : (
+              prices.map((price) => (
+                <TableRow key={price.id}>
+                  <TableCell className="font-medium">{price.repairType}</TableCell>
+                  <TableCell>${price.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(price)}>
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Edit</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDeletePrice(price.id)}>
+                      <Trash className="h-4 w-4" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
