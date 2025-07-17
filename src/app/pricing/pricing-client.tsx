@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
 import {
@@ -41,15 +41,11 @@ function getInitialPrices(): RepairPrice[] {
   return initialRepairPrices;
 }
 
-export function PricingClient({ data }: { data: RepairPrice[] }) {
-  const [prices, setPrices] = useState<RepairPrice[]>(data);
+export function PricingClient() {
+  const [prices, setPrices] = useState<RepairPrice[]>(getInitialPrices);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
 
-  useEffect(() => {
-    setPrices(getInitialPrices());
-  }, []);
-  
   const updatePrices = (newPrices: RepairPrice[]) => {
     setPrices(newPrices);
     Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 365 });
