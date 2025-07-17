@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -39,6 +39,19 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from '@/components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,6 +123,28 @@ type Filter = {
   value: string | number;
 };
 
+const newAssetSchema = z.object({
+  address: z.string().min(1, 'Address is required.'),
+  yearInstalled: z.coerce.number().min(1900, 'Invalid year').max(new Date().getFullYear(), 'Year cannot be in the future.'),
+  material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
+  setbackFromWaterSource: z.coerce.number().min(0),
+  setbackFromHouse: z.coerce.number().min(0),
+  tankBuryDepth: z.coerce.number().min(0),
+  openingSize: z.coerce.number().min(0),
+  aboveGroundCollarHeight: z.coerce.number().min(0),
+  septicSystemType: z.enum(['Cistern', 'Septic Tank']),
+  assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
+  fieldNotes: z.string().optional(),
+}).refine(data => {
+    if (data.septicSystemType === 'Cistern' && data.assetSubType !== 'Cistern') {
+        return false;
+    }
+    return true;
+}, {
+    message: "Sub-type must be 'Cistern' if system type is 'Cistern'",
+    path: ['assetSubType'],
+});
+
 
 export function DashboardClient({ data }: { data: Asset[] }) {
   const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
@@ -118,6 +153,32 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const [isNewAssetDialogOpen, setIsNewAssetDialogOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof newAssetSchema>>({
+    resolver: zodResolver(newAssetSchema),
+    defaultValues: {
+      address: '',
+      yearInstalled: new Date().getFullYear(),
+      material: 'Concrete',
+      setbackFromWaterSource: 0,
+      setbackFromHouse: 0,
+      tankBuryDepth: 0,
+      openingSize: 0,
+      aboveGroundCollarHeight: 0,
+      septicSystemType: 'Septic Tank',
+      assetSubType: 'Pump Out',
+      fieldNotes: '',
+    },
+  });
+  
+  const septicSystemType = form.watch('septicSystemType');
+
+  useEffect(() => {
+    if (septicSystemType === 'Cistern') {
+      form.setValue('assetSubType', 'Cistern');
+    }
+  }, [septicSystemType, form]);
 
   useEffect(() => {
     setIsClient(true);
@@ -264,6 +325,29 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       setIsGenerating(false);
     }
   };
+
+  const handleAddNewAsset = (values: z.infer<typeof newAssetSchema>) => {
+    const assetTypePrefix = values.septicSystemType === 'Cistern' ? 'C' : 'S';
+    const newAsset: AssetWithRecommendation = {
+        ...values,
+        assetId: `${assetTypePrefix}-${String(Date.now()).slice(-4)}`,
+        siteCondition: 5,
+        coverCondition: 5,
+        collarCondition: 5,
+        interiorCondition: 5,
+        overallCondition: 5,
+        recommendation: undefined,
+        estimatedCost: undefined,
+        needsPrice: false,
+    };
+    setAssets(prev => [newAsset, ...prev]);
+    toast({
+        title: 'Asset Added',
+        description: `Asset ${newAsset.assetId} has been successfully added.`,
+    });
+    setIsNewAssetDialogOpen(false);
+    form.reset();
+  }
 
 
   const handleValueChange = (
@@ -584,6 +668,144 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           </DropdownMenu>
         </div>
         <div className="flex items-center gap-4">
+           <Dialog open={isNewAssetDialogOpen} onOpenChange={setIsNewAssetDialogOpen}>
+              <DialogTrigger asChild>
+                <Button disabled={!isClient}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Asset
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Asset</DialogTitle>
+                </DialogHeader>
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleAddNewAsset)} className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                        <FormField control={form.control} name="address" render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                                <FormLabel>Address</FormLabel>
+                                <FormControl><Input {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="yearInstalled" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Year Installed</FormLabel>
+                                <FormControl><Input type="number" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="material" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Material</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Concrete">Concrete</SelectItem>
+                                        <SelectItem value="Polyethylene">Polyethylene</SelectItem>
+                                        <SelectItem value="Fibreglass">Fibreglass</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="septicSystemType" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>System Type</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Cistern">Cistern</SelectItem>
+                                        <SelectItem value="Septic Tank">Septic Tank</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="assetSubType" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Sub-Type</FormLabel>
+                                 <Select onValueChange={field.onChange} value={field.value} disabled={septicSystemType === 'Cistern'}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                       {septicSystemType === 'Cistern' ? (
+                                            <SelectItem value="Cistern">Cistern</SelectItem>
+                                       ) : (
+                                           <>
+                                            <SelectItem value="Pump Out">Pump Out</SelectItem>
+                                            <SelectItem value="Mound">Mound</SelectItem>
+                                            <SelectItem value="Septic Field">Septic Field</SelectItem>
+                                            <SelectItem value="Other">Other</SelectItem>
+                                           </>
+                                       )}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="setbackFromWaterSource" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Setback Water (m)</FormLabel>
+                                <FormControl><Input type="number" step="0.1" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="setbackFromHouse" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Setback House (m)</FormLabel>
+                                <FormControl><Input type="number" step="0.1" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="tankBuryDepth" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Bury Depth (m)</FormLabel>
+                                <FormControl><Input type="number" step="0.1" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <FormField control={form.control} name="openingSize" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Opening Size (m)</FormLabel>
+                                <FormControl><Input type="number" step="0.1" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="aboveGroundCollarHeight" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Collar Height (m)</FormLabel>
+                                <FormControl><Input type="number" step="0.1" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="fieldNotes" render={({ field }) => (
+                            <FormItem className="md:col-span-2">
+                                <FormLabel>Field Notes</FormLabel>
+                                <FormControl><Textarea {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                        
+                        <DialogFooter className="md:col-span-2">
+                            <DialogClose asChild>
+                                <Button type="button" variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button type="submit">Add Asset</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+              </DialogContent>
+           </Dialog>
            <Button variant="ghost" onClick={handleResetData} disabled={!isClient}>
              <RotateCcw className="mr-2 h-4 w-4" />
              Reset Data
