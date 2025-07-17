@@ -67,6 +67,7 @@ export function PricingClient({ initialPrices }: { initialPrices: RepairPrice[] 
     }
     updatePrices(updatedPrices);
     setIsDialogOpen(false);
+    setEditingPrice(null);
   };
 
   const handleDeletePrice = (id: string) => {
