@@ -1,7 +1,6 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
 import {
@@ -24,42 +23,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
-import Cookies from 'js-cookie';
-
-function loadPricesFromCookie(): RepairPrice[] {
-  const cookie = Cookies.get('repairPrices');
-  if (cookie) {
-    try {
-      const parsed = JSON.parse(cookie);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse repairPrices cookie, falling back to default data.', e);
-    }
-  }
-  // If cookie doesn't exist or is invalid, set it with the initial default prices and return them.
-  Cookies.set('repairPrices', JSON.stringify(initialRepairPrices), { expires: 365 });
-  return initialRepairPrices;
-}
-
+import { useState } from 'react';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 
 export function PricingClient() {
-  const [prices, setPrices] = useState<RepairPrice[]>([]);
+  const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    // This effect runs only on the client, after hydration
-    setPrices(loadPricesFromCookie());
-    setIsClient(true);
-  }, []);
-
-  const updatePrices = (newPrices: RepairPrice[]) => {
-    setPrices(newPrices);
-    Cookies.set('repairPrices', JSON.stringify(newPrices), { expires: 365 });
-  };
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -76,14 +46,14 @@ export function PricingClient() {
     } else {
       updatedPrices = [...prices, newPrice];
     }
-    updatePrices(updatedPrices);
+    setPrices(updatedPrices);
     setEditingPrice(null);
     setIsDialogOpen(false);
   };
 
   const handleDeletePrice = (id: string) => {
     const updatedPrices = prices.filter((p) => p.id !== id);
-    updatePrices(updatedPrices);
+    setPrices(updatedPrices);
   };
   
   const handleOpenDialog = (price: RepairPrice | null = null) => {
@@ -96,7 +66,7 @@ export function PricingClient() {
       <div className="flex justify-end">
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog(null)} disabled={!isClient}>
+            <Button onClick={() => handleOpenDialog(null)}>
               <Plus className="mr-2 h-4 w-4" />
               Add New Repair
             </Button>
@@ -132,7 +102,7 @@ export function PricingClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {prices.length === 0 && isClient ? (
+            {prices.length === 0 ? (
                <TableRow>
                   <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
                     No repair prices configured. Click "Add New Repair" to get started.

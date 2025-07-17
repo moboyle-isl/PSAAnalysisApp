@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -11,6 +12,7 @@ import {
   type RecommendRepairsAllAssetsOutput,
 } from '@/ai/flows/recommend-repairs';
 import type { RepairPrice } from '@/lib/data';
+import { initialRepairPrices } from '@/lib/data';
 import { cookies } from 'next/headers';
 
 export async function predictRemainingLife(
@@ -42,12 +44,17 @@ export async function getRepairPricesFromCookie(): Promise<RepairPrice[]> {
   const pricesCookie = cookieStore.get('repairPrices');
   if (pricesCookie?.value) {
     try {
-      return JSON.parse(pricesCookie.value);
+      const parsed = JSON.parse(pricesCookie.value);
+      // Return the parsed data if it's an array, even if it's empty.
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     } catch (e) {
       console.error('Failed to parse repairPrices cookie:', e);
-      // Fallback or error handling
+      // Fallback to initial prices if cookie is corrupt.
+      return initialRepairPrices;
     }
   }
-  // Return empty or default if cookie not set or invalid
-  return [];
+  // Fallback to initial prices if cookie is not set.
+  return initialRepairPrices;
 }
