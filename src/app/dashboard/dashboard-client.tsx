@@ -109,10 +109,16 @@ type Filter = {
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
+  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', data.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined })));
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+  
   const [columnVisibility, setColumnVisibility] = useState<
     Record<string, boolean>
   >({
@@ -164,10 +170,11 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
   
   const filteredAssets = useMemo(() => {
+    const assetsToFilter = isClient ? assets : data;
     if (filters.length === 0) {
-      return assets;
+      return assetsToFilter;
     }
-    return assets.filter(asset => {
+    return assetsToFilter.filter(asset => {
       return filters.every(filter => {
         const assetValue = asset[filter.column];
         if (assetValue === undefined || assetValue === null) return false;
@@ -198,7 +205,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         return true;
       });
     });
-  }, [assets, filters]);
+  }, [isClient, assets, data, filters]);
   
   const totalRepairCost = useMemo(() => {
     return filteredAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
@@ -223,7 +230,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           return {
           ...asset,
           recommendation: rec?.recommendation || asset.recommendation || 'No specific recommendation.',
-          estimatedCost: rec?.estimatedCost || asset.estimatedCost || 0,
+          estimatedCost: rec?.estimatedCost ?? asset.estimatedCost ?? undefined,
         }})
       );
       toast({
@@ -265,7 +272,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
   
   const handleResetData = () => {
-    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
+    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined })));
     toast({
         title: "Data Reset",
         description: "All asset data has been reset to its initial state.",
@@ -383,9 +390,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       }
     }
      if (key === 'estimatedCost') {
+      const cost = value as number;
       return (
         <span className="truncate">
-          {(value as number) > 0 ? `$${(value as number).toFixed(2)}` : '-'}
+          {cost !== undefined && cost !== null && cost > 0 ? `$${cost.toFixed(2)}` : '-'}
         </span>
       );
     }
@@ -430,7 +438,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
-                <span className="text-muted-foreground">{filteredAssets.length} / {assets.length}</span>
+                <span className="text-muted-foreground">{filteredAssets.length} / {isClient ? assets.length : data.length}</span>
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold">
@@ -458,7 +466,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       </div>
        <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-           <Button onClick={handleRunRecommendations} disabled={isGenerating}>
+           <Button onClick={handleRunRecommendations} disabled={isGenerating || !isClient}>
             {isGenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -470,7 +478,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         <div className="flex items-center gap-4">
           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" disabled={!isClient}>
                 <FilterIcon className="mr-2 h-4 w-4" />
                 Filter
               </Button>
@@ -522,7 +530,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" disabled={!isClient}>
                 <View className="mr-2 h-4 w-4" />
                 View
               </Button>
@@ -544,7 +552,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-           <Button variant="ghost" onClick={handleResetData}>
+           <Button variant="ghost" onClick={handleResetData} disabled={!isClient}>
              <RotateCcw className="mr-2 h-4 w-4" />
              Reset Data
            </Button>
@@ -584,8 +592,8 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                   {visibleColumns.map((header) => (
                     <TableCell
                       key={header.key}
-                      onClick={() => isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
-                      className={isCellEditable(asset, header.key) ? 'cursor-pointer' : ''}
+                      onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
+                      className={isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : ''}
                     >
                       {renderCellContent(asset, header.key)}
                     </TableCell>
