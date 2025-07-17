@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Asset } from '@/lib/data';
+import { initialAssets } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -22,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -41,6 +42,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string,
@@ -107,7 +109,7 @@ type Filter = {
 
 
 export function DashboardClient({ data }: { data: Asset[] }) {
-  const [assets, setAssets] = useState<AssetWithRecommendation[]>(data.map(d => ({ ...d, estimatedCost: 0 })));
+  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', data.map(d => ({ ...d, estimatedCost: 0 })));
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -260,6 +262,14 @@ export function DashboardClient({ data }: { data: Asset[] }) {
         return asset;
       })
     );
+  };
+  
+  const handleResetData = () => {
+    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: 0 })));
+    toast({
+        title: "Data Reset",
+        description: "All asset data has been reset to its initial state.",
+      });
   };
 
   const renderCellContent = (asset: AssetWithRecommendation, key: keyof AssetWithRecommendation) => {
@@ -534,6 +544,10 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+           <Button variant="ghost" onClick={handleResetData}>
+             <RotateCcw className="mr-2 h-4 w-4" />
+             Reset Data
+           </Button>
         </div>
       </div>
       {filters.length > 0 && (
@@ -585,3 +599,5 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     </div>
   );
 }
+
+    
