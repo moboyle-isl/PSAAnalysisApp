@@ -600,7 +600,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       const cost = value as number;
       return (
         <span className="truncate">
-          {cost !== undefined && cost !== null && cost > 0 ? `$${cost.toFixed(2)}` : '-'}
+          {cost !== undefined && cost !== null && cost > 0 ? `$${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
         </span>
       );
     }
@@ -707,7 +707,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             <CardContent>
                 {isClient ? (
                     <div className="text-2xl font-bold">
-                        ${totalRepairCost.toFixed(2)}
+                        ${totalRepairCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                 ) : (
                     <Skeleton className="h-8 w-1/2" />
@@ -906,7 +906,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 </Form>
               </DialogContent>
            </Dialog>
-           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
+          <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
             <PopoverTrigger asChild>
               <Button variant="outline" disabled={!isClient}>
                 <FilterIcon className="mr-2 h-4 w-4" />

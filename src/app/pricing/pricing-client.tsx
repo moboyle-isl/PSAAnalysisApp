@@ -142,7 +142,7 @@ export function PricingClient() {
                       <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{price.description}</p>
                     )}
                   </TableCell>
-                  <TableCell className="align-top">${price.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell className="align-top">${price.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right align-top">
                     <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(price)}>
                       <Pencil className="h-4 w-4" />
