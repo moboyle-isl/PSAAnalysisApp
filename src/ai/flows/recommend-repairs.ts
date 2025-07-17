@@ -84,8 +84,8 @@ export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllA
 const SingleAssetRecommendationSchema = z.object({
     assetId: z.string(),
     recommendation: z.string().describe('The recommended repair or replacement action. Should be a short summary.'),
-    recommendedRepairType: z.string().describe("The specific repair type from the provided tool. If no specific repair is applicable, return 'None'."),
-    estimatedCost: z.number().describe("The estimated cost for the repair. If no repair is recommended, return 0."),
+    recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided tool or a new one if appropriate. If no specific repair is applicable, return 'None'."),
+    estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -135,9 +135,12 @@ You MUST use the 'getRepairPrices' tool to see the available repair types and th
 User-Defined Rules: {{{userDefinedRules}}}
 
 Analyze the following assets and provide a specific repair or replacement recommendation for each one.
-- For each asset, determine the most appropriate repair from the list provided by the tool.
-- If a repair is needed, specify the 'recommendedRepairType' and calculate the 'estimatedCost' based on the tool's unit prices.
+- For each asset, determine the most appropriate repair.
 - The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank").
+- If a repair is needed, set 'recommendedRepairType' to the name of the repair.
+- Check if the 'recommendedRepairType' exists in the list from the tool.
+- If it exists, calculate the 'estimatedCost' based on the tool's unit prices.
+- If the 'recommendedRepairType' does NOT exist in the tool's price list, you MUST set 'estimatedCost' to 0. In the 'recommendation' field, you MUST add the sentence: "Please add a price for this repair in the Price Configuration tool."
 - If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", and 'estimatedCost' to 0.
 
 Assets:
