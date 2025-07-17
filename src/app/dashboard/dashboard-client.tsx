@@ -59,7 +59,7 @@ type Column = {
 };
 
 const ALL_COLUMNS: Column[] = [
-    { key: 'assetId', label: 'Asset ID', type: 'string', width: '120px' },
+    { key: 'assetId', label: 'Asset ID', type: 'string', width: '50px' },
     { key: 'address', label: 'Address', type: 'string', width: '300px' },
     { key: 'yearInstalled', label: 'Year Installed', type: 'number', width: '120px' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'], width: '120px' },
