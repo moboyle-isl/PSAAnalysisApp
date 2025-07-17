@@ -15,35 +15,6 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { Asset, RepairPrice } from '@/lib/data';
-import { initialRepairPrices } from '@/lib/data';
-import { getRepairPricesFromCookie } from '@/app/actions';
-
-const getRepairPrices = ai.defineTool(
-  {
-    name: 'getRepairPrices',
-    description: 'Returns the list of available repair types and their unit prices. This should be called to get the most up-to-date pricing information.',
-    inputSchema: z.void(),
-    outputSchema: z.array(z.object({
-      id: z.string(),
-      repairType: z.string(),
-      unitPrice: z.number(),
-    })),
-  },
-  async () => {
-    const pricesFromCookie = await getRepairPricesFromCookie();
-
-    // If the cookie has data, use it as the source of truth.
-    // The cookie is updated by the Pricing Configuration page.
-    if (pricesFromCookie.length > 0) {
-      return pricesFromCookie;
-    }
-    
-    // Otherwise, fall back to the initial default prices.
-    return initialRepairPrices;
-  }
-);
-
 
 const RecommendRepairsInputSchema = z.object({
   conditionData: z.string().describe('The condition data of the asset.'),
@@ -78,8 +49,15 @@ const AssetSchema = z.object({
   fieldNotes: z.string(),
 });
 
+const RepairPriceSchema = z.object({
+    id: z.string(),
+    repairType: z.string(),
+    unitPrice: z.number(),
+});
+
 const RecommendRepairsAllAssetsInputSchema = z.object({
     assets: z.array(AssetSchema),
+    repairPrices: z.array(RepairPriceSchema).describe("A list of available repair types and their unit prices."),
     userDefinedRules: z.string().describe('The user-defined rules for repair recommendations.'),
 });
 
@@ -88,9 +66,9 @@ export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllA
 const SingleAssetRecommendationSchema = z.object({
     assetId: z.string(),
     recommendation: z.string().describe('The recommended repair or replacement action. Should be a short summary.'),
-    recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided tool or a new one if appropriate. If no specific repair is applicable, return 'None'."),
+    recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return 'None'."),
     estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
-    needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided tool, otherwise set to false."),
+    needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided list, otherwise set to false."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -130,12 +108,18 @@ const recommendRepairsFlow = ai.defineFlow(
 
 const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
-  tools: [getRepairPrices],
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
   prompt: `You are an AI assistant that recommends repairs or replacements for a list of assets based on their condition, type, and user-defined rules.
 
-You MUST use the 'getRepairPrices' tool to see the available repair types and their costs. Do not invent prices.
+You are given a list of available repair types and their costs. Do not invent prices.
+
+Available Repairs and Prices:
+{{#each repairPrices}}
+- {{repairType}}: \${{unitPrice}}
+{{else}}
+- No prices provided.
+{{/each}}
 
 User-Defined Rules: {{{userDefinedRules}}}
 
@@ -143,9 +127,9 @@ Analyze the following assets and provide a specific repair or replacement recomm
 - For each asset, determine the most appropriate repair.
 - The 'recommendation' field should be a short, human-readable summary of the action (e.g., "Replace pump seal", "Relinish tank").
 - If a repair is needed, set 'recommendedRepairType' to the name of the repair.
-- Check if the 'recommendedRepairType' exists in the list from the tool.
-- If it exists, calculate the 'estimatedCost' based on the tool's unit prices and set 'needsPrice' to false.
-- If the 'recommendedRepairType' does NOT exist in the tool's price list, you MUST set 'estimatedCost' to 0 and 'needsPrice' to true.
+- Check if the 'recommendedRepairType' exists in the provided price list.
+- If it exists, calculate the 'estimatedCost' based on the unit prices and set 'needsPrice' to false.
+- If the 'recommendedRepairType' does NOT exist in the price list, you MUST set 'estimatedCost' to 0 and 'needsPrice' to true.
 - If no repair is necessary, set 'recommendation' to "No action needed", 'recommendedRepairType' to "None", 'estimatedCost' to 0, and 'needsPrice' to false.
 
 Assets:
@@ -178,7 +162,3 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         return output!;
     }
 );
-
-
-
-

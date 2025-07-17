@@ -2,8 +2,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import type { Asset } from '@/lib/data';
-import { initialAssets } from '@/lib/data';
+import type { Asset, RepairPrice } from '@/lib/data';
+import { initialAssets, initialRepairPrices } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -111,6 +111,7 @@ type Filter = {
 
 export function DashboardClient({ data }: { data: Asset[] }) {
   const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
+  const [repairPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -225,6 +226,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     try {
       const result = await recommendRepairsForAllAssets({
         assets: assets,
+        repairPrices: repairPrices,
         userDefinedRules: 'Prioritize repairs that extend life by over 5 years. Replace if repair cost exceeds 60% of new asset cost.',
       });
 
