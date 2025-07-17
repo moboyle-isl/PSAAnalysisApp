@@ -220,9 +220,9 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     }
   }, [data, setAssets]);
   
-  const [columnVisibility, setColumnVisibility] = useState<
+  const [columnVisibility, setColumnVisibility] = useLocalStorage<
     Record<string, boolean>
-  >({
+  >('columnVisibility', {
     assetId: true,
     address: true,
     yearInstalled: true,
@@ -245,13 +245,13 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     actions: true,
   });
 
-  const [filters, setFilters] = useState<Filter[]>([]);
+  const [filters, setFilters] = useLocalStorage<Filter[]>('assetFilters', []);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
   const [currentFilter, setCurrentFilter] = useState<{column?: Column, operator?: string, value?: string}>({});
   
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortConfig, setSortConfig] = useLocalStorage<SortConfig | null>('assetSortConfig', null);
   const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
-  const [currentSort, setCurrentSort] = useState<{key: string, direction: 'ascending' | 'descending'}>({ key: 'assetId', direction: 'ascending' });
+  const [currentSort, setCurrentSort] = useState<{key: string, direction: 'ascending' | 'descending'}>(sortConfig ? {key: sortConfig.key, direction: sortConfig.direction} : { key: 'assetId', direction: 'ascending' });
 
   const visibleColumns = ALL_COLUMNS.filter(
     (column) => columnVisibility[column.key]
@@ -306,7 +306,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 const filterNumValue = Number(filter.value);
                 if (filter.operator === 'equals') return numValue === filterNumValue;
                 if (filter.operator === 'not_equals') return numValue !== filterNumValue;
-                if (filter.operator === 'gt') return numValue > numValue;
+                if (filter.operator === 'gt') return numValue > filterNumValue;
                 if (filter.operator === 'gte') return numValue >= filterNumValue;
                 if (filter.operator === 'lt') return numValue < filterNumValue;
                 if (filter.operator === 'lte') return numValue <= filterNumValue;
