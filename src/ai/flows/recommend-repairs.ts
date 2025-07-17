@@ -148,12 +148,16 @@ Available Repairs and Prices:
 Assets to Analyze:
 {{#each assets}}
 - Asset ID: {{assetId}}
+- Address: {{address}}
 - Type: {{septicSystemType}}
 - Sub-Type: {{assetSubType}}
 - Year Installed: {{yearInstalled}}
 - Material: {{material}}
 - Setback Water (m): {{setbackFromWaterSource}}
 - Setback House (m): {{setbackFromHouse}}
+- Bury Depth (m): {{tankBuryDepth}}
+- Opening Size (m): {{openingSize}}
+- Collar Height (m): {{aboveGroundCollarHeight}}
 - Site Condition: {{siteCondition}}/5
 - Cover Condition: {{coverCondition}}/5
 - Collar Condition: {{collarCondition}}/5
