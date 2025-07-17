@@ -1,12 +1,20 @@
 export type Asset = {
-  id: string;
-  name: string;
-  type: 'Pump' | 'Valve' | 'Pipe' | 'Tank';
-  conditionScore: number;
-  installDate: string;
-  lastMaintenance: string;
-  maintenanceHistory: string;
-  usageIntensity: 'Light' | 'Moderate' | 'Heavy';
+  assetId: string;
+  address: string;
+  yearInstalled: number;
+  material: 'Concrete' | 'Polyethylene' | 'Fibreglass';
+  setbackFromWaterSource: number;
+  setbackFromHouse: number;
+  tankBuryDepth: number;
+  openingSize: number;
+  aboveGroundCollarHeight: number;
+  septicSystemType: 'Cistern' | 'Septic Tank';
+  siteCondition: number;
+  coverCondition: number;
+  collarCondition: number;
+  interiorCondition: number;
+  overallCondition: number;
+  fieldNotes: string;
 };
 
 export type RepairPrice = {
@@ -17,56 +25,97 @@ export type RepairPrice = {
 
 export const initialAssets: Asset[] = [
   {
-    id: 'ASSET-001',
-    name: 'Main Water Pump',
-    type: 'Pump',
-    conditionScore: 85,
-    installDate: '2018-03-15',
-    lastMaintenance: '2023-11-01',
-    maintenanceHistory: 'Regular annual checkups, impeller replaced in 2021.',
-    usageIntensity: 'Heavy',
+    assetId: 'C-001',
+    address: '123 Willow Creek Rd',
+    yearInstalled: 2015,
+    material: 'Concrete',
+    setbackFromWaterSource: 30,
+    setbackFromHouse: 15,
+    tankBuryDepth: 1.2,
+    openingSize: 0.6,
+    aboveGroundCollarHeight: 0.2,
+    septicSystemType: 'Cistern',
+    siteCondition: 5,
+    coverCondition: 4,
+    collarCondition: 5,
+    interiorCondition: 5,
+    overallCondition: 5,
+    fieldNotes: 'System appears in good condition.',
   },
   {
-    id: 'ASSET-002',
-    name: 'Section 5 Gate Valve',
-    type: 'Valve',
-    conditionScore: 92,
-    installDate: '2020-07-22',
-    lastMaintenance: '2024-01-10',
-    maintenanceHistory: 'Lubricated annually.',
-    usageIntensity: 'Moderate',
+    assetId: 'S-001',
+    address: '456 Oak Hollow Ln',
+    yearInstalled: 2008,
+    material: 'Polyethylene',
+    setbackFromWaterSource: 50,
+    setbackFromHouse: 20,
+    tankBuryDepth: 1.5,
+    openingSize: 0.7,
+    aboveGroundCollarHeight: 0.1,
+    septicSystemType: 'Septic Tank',
+    siteCondition: 4,
+    coverCondition: 3,
+    collarCondition: 4,
+    interiorCondition: 3,
+    overallCondition: 3,
+    fieldNotes: 'Cover has minor cracks. Effluent levels normal.',
   },
   {
-    id: 'ASSET-003',
-    name: 'Primary Distribution Pipe',
-    type: 'Pipe',
-    conditionScore: 70,
-    installDate: '2010-01-05',
-    lastMaintenance: '2022-05-20',
-    maintenanceHistory: 'Minor leak patched in 2019. Visual inspection every 2 years.',
-    usageIntensity: 'Heavy',
+    assetId: 'S-002',
+    address: '789 Pine Ridge Trl',
+    yearInstalled: 1999,
+    material: 'Concrete',
+    setbackFromWaterSource: 45,
+    setbackFromHouse: 10,
+    tankBuryDepth: 1.0,
+    openingSize: 0.6,
+    aboveGroundCollarHeight: 0.3,
+    septicSystemType: 'Septic Tank',
+    siteCondition: 2,
+    coverCondition: 2,
+    collarCondition: 3,
+    interiorCondition: 2,
+    overallCondition: 2,
+    fieldNotes: 'Lid is damaged. Visible roots near tank. Signs of past overflows.',
   },
   {
-    id: 'ASSET-004',
-    name: 'Holding Tank Alpha',
-    type: 'Tank',
-    conditionScore: 95,
-    installDate: '2015-09-30',
-    lastMaintenance: '2023-08-14',
-    maintenanceHistory: 'Cleaned and inspected every 2 years.',
-    usageIntensity: 'Light',
+    assetId: 'C-002',
+    address: '321 Maple Grove Ave',
+    yearInstalled: 2020,
+    material: 'Fibreglass',
+    setbackFromWaterSource: 60,
+    setbackFromHouse: 25,
+    tankBuryDepth: 1.8,
+    openingSize: 0.5,
+    aboveGroundCollarHeight: 0.2,
+    septicSystemType: 'Cistern',
+    siteCondition: 5,
+    coverCondition: 5,
+    collarCondition: 5,
+    interiorCondition: 5,
+    overallCondition: 5,
+    fieldNotes: 'New installation. Excellent condition.',
   },
-   {
-    id: 'ASSET-005',
-    name: 'Secondary Coolant Pump',
-    type: 'Pump',
-    conditionScore: 65,
-    installDate: '2016-06-18',
-    lastMaintenance: '2023-02-21',
-    maintenanceHistory: 'Seal replaced in 2022. Shows signs of vibration.',
-    usageIntensity: 'Heavy',
+  {
+    assetId: 'S-003',
+    address: '654 Birchwood Dr',
+    yearInstalled: 2012,
+    material: 'Polyethylene',
+    setbackFromWaterSource: 35,
+    setbackFromHouse: 18,
+    tankBuryDepth: 1.3,
+    openingSize: 0.7,
+    aboveGroundCollarHeight: 0.15,
+    septicSystemType: 'Septic Tank',
+    siteCondition: 4,
+    coverCondition: 4,
+    collarCondition: 4,
+    interiorCondition: 4,
+    overallCondition: 4,
+    fieldNotes: 'No issues noted during last inspection.',
   },
 ];
+
 
 export const initialRepairPrices: RepairPrice[] = [
   { id: 'REPAIR-01', repairType: 'Pump Seal Replacement', unitPrice: 500 },
