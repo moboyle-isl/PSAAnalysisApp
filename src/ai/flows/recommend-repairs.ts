@@ -112,19 +112,25 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI asset management expert. Your task is to provide repair recommendations AND estimate the remaining life for a list of assets.
+  prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks:
+1.  Estimate the remaining life.
+2.  Recommend a repair.
 
-You MUST follow this logic precisely for each asset:
+You must provide a response for every asset.
 
-**TASK 1: ESTIMATE REMAINING LIFE**
+---
+**TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
 For each asset, provide an estimate of its remaining useful life.
 - You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", "20-25 years".
 - The maximum value is "20-25 years".
 - Base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
-- Pay close attention to the 'User-Defined Rules', as they may contain guidance on expected lifespans (e.g., "Concrete tanks have a 50-year life").
-- If a replacement is recommended, the remaining life should be '0-5 years'.
+- Pay close attention to the 'User-Defined Rules', as they may contain guidance on expected lifespans (e.g., "Concrete tanks have a 50-year life"). This is crucial input for your estimation.
+- If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years'.
 
-**TASK 2: RECOMMEND REPAIRS**
+---
+**TASK 2: RECOMMEND REPAIRS (FOR EACH ASSET)**
+After estimating the remaining life, determine the appropriate repair recommendation by following this logic precisely:
+
 1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
     - For each asset, check if its data matches any of the user-defined rules provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
     - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
@@ -134,7 +140,7 @@ For each asset, provide an estimate of its remaining useful life.
         - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
         - If a confident match is found, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
         - If you DO NOT find a confident match, set 'estimatedCost' to 0 and 'needsPrice' to true.
-    - Once a rule matches, STOP further analysis for that asset and move to the next one.
+    - Once a rule matches, STOP further repair analysis for that asset and use this as its recommendation for Task 2.
 
 2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no rule applies).**
     - If no user rule matches an asset, then analyze its 'Field Notes' and other properties.
@@ -164,7 +170,7 @@ For each asset, provide an estimate of its remaining useful life.
     - Set 'estimatedCost' to 0 and 'needsPrice' to false.
 
 ---
-**User-Defined Rules (Highest Priority):**
+**User-Defined Rules (Used for BOTH tasks):**
 {{#if userDefinedRules}}
 {{{userDefinedRules}}}
 {{else}}
@@ -172,7 +178,7 @@ No user-defined rules provided.
 {{/if}}
 
 ---
-**Available Repairs and Prices:**
+**Available Repairs and Prices (Used for Task 2):**
 {{#each repairPrices}}
 - {{repairType}}: \${{unitPrice}}
 {{/each}}
