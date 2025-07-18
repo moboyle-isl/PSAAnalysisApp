@@ -189,6 +189,30 @@ const newAssetSchema = z.object({
     path: ['assetSubType'],
 });
 
+const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
+  assetId: true,
+  address: true,
+  yearInstalled: true,
+  material: true,
+  septicSystemType: true,
+  assetSubType: true,
+  setbackFromWaterSource: false,
+  setbackFromHouse: false,
+  tankBuryDepth: false,
+  openingSize: false,
+  aboveGroundCollarHeight: false,
+  siteCondition: true,
+  coverCondition: true,
+  collarCondition: true,
+  interiorCondition: true,
+  overallCondition: true,
+  fieldNotes: true,
+  recommendation: true,
+  estimatedCost: true,
+  estimatedRemainingLife: true,
+  actions: true,
+};
+
 
 export function DashboardClient() {
   const { assets, setAssets, repairPrices, rules, isReady } = useProjects();
@@ -236,29 +260,7 @@ export function DashboardClient() {
   
   const [columnVisibility, setColumnVisibility] = useLocalStorage<
     Record<string, boolean>
-  >('columnVisibility', {
-    assetId: true,
-    address: true,
-    yearInstalled: true,
-    material: true,
-    septicSystemType: true,
-    assetSubType: true,
-    setbackFromWaterSource: false,
-    setbackFromHouse: false,
-    tankBuryDepth: false,
-    openingSize: false,
-    aboveGroundCollarHeight: false,
-    siteCondition: true,
-    coverCondition: true,
-    collarCondition: true,
-    interiorCondition: true,
-    overallCondition: true,
-    fieldNotes: true,
-    recommendation: true,
-    estimatedCost: true,
-    estimatedRemainingLife: true,
-    actions: true,
-  });
+  >('columnVisibility', DEFAULT_COLUMN_VISIBILITY);
 
   const [filters, setFilters] = useLocalStorage<Filter[]>('assetFilters', []);
   const [filterPopoverOpen, setFilterPopoverOpen] = useState(false);
@@ -288,16 +290,11 @@ export function DashboardClient() {
   };
   
   const { processedAssets, visibleColumns } = useMemo(() => {
-    const defaultVisibleColumns = ALL_COLUMNS.filter(c => columnVisibility[c.key]);
-
-    if (!isClient) {
-      return { processedAssets: [], visibleColumns: defaultVisibleColumns };
-    }
-    
+    const visibility = isClient ? columnVisibility : DEFAULT_COLUMN_VISIBILITY;
     const currentVisibleColumns = ALL_COLUMNS.filter(
-      (column) => columnVisibility[column.key]
+      (column) => visibility[column.key]
     );
-    
+
     let assetsToProcess = [...assets];
     
     // Filtering
@@ -354,7 +351,6 @@ export function DashboardClient() {
             return sortConfig.direction === 'ascending' ? comparison : -comparison;
         });
     }
-
 
     return { processedAssets: assetsToProcess, visibleColumns: currentVisibleColumns };
   }, [isClient, assets, filters, sortConfig, columnVisibility]);
