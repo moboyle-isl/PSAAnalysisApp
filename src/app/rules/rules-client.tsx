@@ -434,68 +434,68 @@ export function RulesClient() {
             </form>
           </Form>
         </DialogContent>
-      </Dialog>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Active Rules</CardTitle>
-                <CardDescription>
-                    These rules will be sent to the AI to influence its recommendations.
-                </CardDescription>
-            </div>
-            {isReady && (
-                <DialogTrigger asChild>
-                  <Button onClick={() => handleOpenDialog()}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Rule
-                  </Button>
-                </DialogTrigger>
-            )}
-        </CardHeader>
-        <CardContent>
-          {isReady ? (
-            rules.length > 0 ? (
-              <ul className="space-y-4">
-                {rules.map(rule => (
-                  <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
-                    <div className="flex items-start gap-3">
-                        <Wand2 className="h-5 w-5 text-primary shrink-0 mt-1" />
-                        <div className="flex-1">
-                            {renderRule(rule)}
-                            <Separator className="my-2" />
-                            <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
+
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Active Rules</CardTitle>
+                    <CardDescription>
+                        These rules will be sent to the AI to influence its recommendations.
+                    </CardDescription>
+                </div>
+                {isReady && (
+                    <DialogTrigger asChild>
+                    <Button onClick={() => handleOpenDialog()}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Rule
+                    </Button>
+                    </DialogTrigger>
+                )}
+            </CardHeader>
+            <CardContent>
+            {isReady ? (
+                rules.length > 0 ? (
+                <ul className="space-y-4">
+                    {rules.map(rule => (
+                    <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
+                        <div className="flex items-start gap-3">
+                            <Wand2 className="h-5 w-5 text-primary shrink-0 mt-1" />
+                            <div className="flex-1">
+                                {renderRule(rule)}
+                                <Separator className="my-2" />
+                                <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex items-center">
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit Rule</span>
-                          </Button>
-                        </DialogTrigger>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
-                            <Trash className="h-4 w-4" />
-                            <span className="sr-only">Delete Rule</span>
-                        </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                        <div className="flex items-center">
+                            <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
+                                <Pencil className="h-4 w-4" />
+                                <span className="sr-only">Edit Rule</span>
+                            </Button>
+                            </DialogTrigger>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
+                                <Trash className="h-4 w-4" />
+                                <span className="sr-only">Delete Rule</span>
+                            </Button>
+                        </div>
+                    </li>
+                    ))}
+                </ul>
+                ) : (
+                <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
+                    <p>No rules defined yet.</p>
+                    <p className="text-sm">Click "Add Rule" to create your first one.</p>
+                </div>
+                )
             ) : (
-              <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
-                <p>No rules defined yet.</p>
-                <p className="text-sm">Click "Add Rule" to create your first one.</p>
-              </div>
-            )
-          ) : (
-            <div className="space-y-2">
-                <Skeleton className="h-24 w-full" />
-                <Skeleton className="h-24 w-full" />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <div className="space-y-2">
+                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-24 w-full" />
+                </div>
+            )}
+            </CardContent>
+        </Card>
+      </Dialog>
       </TooltipProvider>
     </div>
   );
