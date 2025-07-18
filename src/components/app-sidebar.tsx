@@ -13,7 +13,6 @@ import {
 import { Separator } from '@/components/ui/separator';
 import {
   LayoutDashboard,
-  History,
   DollarSign,
   Droplets,
   ListChecks,
@@ -29,11 +28,6 @@ export function AppSidebar() {
       href: '/dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-    },
-    {
-      href: '/predictions',
-      label: 'Life Prediction',
-      icon: History,
     },
     {
       href: '/pricing',

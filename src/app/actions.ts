@@ -2,11 +2,6 @@
 'use server';
 
 import {
-  predictRemainingLife as predictRemainingLifeFlow,
-  type PredictRemainingLifeInput,
-  type PredictRemainingLifeOutput,
-} from '@/ai/flows/predict-remaining-life';
-import {
   recommendRepairsForAllAssets as recommendRepairsForAllAssetsFlow,
   type RecommendRepairsAllAssetsInput,
   type RecommendRepairsAllAssetsOutput,
@@ -14,18 +9,6 @@ import {
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
 import { cookies } from 'next/headers';
-
-export async function predictRemainingLife(
-  data: PredictRemainingLifeInput
-): Promise<PredictRemainingLifeOutput> {
-  try {
-    const result = await predictRemainingLifeFlow(data);
-    return result;
-  } catch (error) {
-    console.error(error);
-    throw new Error('Failed to predict remaining life.');
-  }
-}
 
 export async function recommendRepairsForAllAssets(
   data: RecommendRepairsAllAssetsInput
