@@ -55,10 +55,11 @@ export function useProjects() {
   useEffect(() => {
     const activeProject = projects.find(p => p.id === activeProjectId);
     if (activeProject) {
-      setActiveProjectState(activeProject.snapshot);
+      // Deep copy to avoid direct mutation of localStorage state
+      setActiveProjectState(JSON.parse(JSON.stringify(activeProject.snapshot)));
     } else {
       // If active project not found (e.g., deleted), load default
-      setActiveProjectState(DEFAULT_PROJECT.snapshot);
+      setActiveProjectState(JSON.parse(JSON.stringify(DEFAULT_PROJECT.snapshot)));
       setActiveProjectId(DEFAULT_PROJECT_ID);
     }
     setIsReady(true);
@@ -82,6 +83,18 @@ export function useProjects() {
       )
     );
   }, [activeProjectId, activeProjectState, setProjects]);
+  
+  // NEW: Automatically save changes to the current project whenever its state changes.
+  useEffect(() => {
+    // Only run if the state has been initialized and is not the default project.
+    if (isReady && activeProjectState && activeProjectId && activeProjectId !== DEFAULT_PROJECT_ID) {
+      // Compare to see if a save is actually needed to prevent infinite loops.
+      const savedProject = projects.find(p => p.id === activeProjectId);
+      if (savedProject && JSON.stringify(savedProject.snapshot) !== JSON.stringify(activeProjectState)) {
+        updateCurrentProject();
+      }
+    }
+  }, [activeProjectState, activeProjectId, projects, isReady, updateCurrentProject]);
 
 
   const saveProject = useCallback((name: string) => {
