@@ -102,7 +102,7 @@ const conditionSchema = z.object({
     }
 
     if (selectedColumn.type === 'number' || selectedColumn.type === 'enum') {
-        return !!data.operator && (data.value !== undefined && data.value !== '');
+        return !!data.value && data.value !== '';
     }
     
     return false;
@@ -156,7 +156,7 @@ export function RulesClient() {
   const handleAddNewCondition = () => {
     const firstColumn = ASSET_COLUMNS[0];
     const newCondition: Condition = {
-        id: `COND-${Date.now()}`,
+        id: `COND-${Date.now()}-${Math.random()}`,
         column: firstColumn.key,
         ruleType: firstColumn.type === 'string' ? 'text' : 'fixed',
         operator: undefined,
@@ -199,7 +199,12 @@ export function RulesClient() {
                 recommendationText: editingRule.recommendationText,
                 lifeExpectancy: editingRule.lifeExpectancy,
             });
-            setConditions(editingRule.conditions);
+            // Ensure all conditions have a unique ID for rendering
+            const conditionsWithIds = editingRule.conditions.map(c => ({
+                ...c,
+                id: c.id || `COND-${Date.now()}-${Math.random()}`
+            }));
+            setConditions(conditionsWithIds);
         } else {
             form.reset({
                 ruleType: 'REPAIR',
@@ -212,9 +217,10 @@ export function RulesClient() {
     } else {
         setEditingRule(null);
         setConditions([]);
+        form.clearErrors();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDialogOpen, editingRule, form]);
+  }, [isDialogOpen, editingRule]);
 
 
   function onSubmit(data: z.infer<typeof ruleSchema>) {
@@ -242,8 +248,8 @@ export function RulesClient() {
         id: `RULE-${Date.now()}`, 
         ...data, 
         conditions,
-        recommendationText: data.recommendationText || undefined, 
-        lifeExpectancy: data.lifeExpectancy || undefined 
+        recommendationText: data.ruleType === 'REPAIR' ? data.recommendationText : undefined, 
+        lifeExpectancy: data.ruleType === 'REMAINING_LIFE' ? data.lifeExpectancy : undefined 
       };
       setRules([...rules, newRule]);
     }
@@ -270,14 +276,14 @@ export function RulesClient() {
         
         let conditionStr = '';
         if (column.type === 'string') {
-             conditionStr = <span><span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{cond.conditionText}</span></span>
+             conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{cond.conditionText}</span></span>
         } else {
             const operator = [...OPERATORS.number, ...OPERATORS.enum].find(o => o.value === cond.operator);
-            conditionStr = <span><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{String(cond.value)}</span></span>
+            conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{String(cond.value)}</span></span>
         }
 
         return (
-            <span key={index} className="block">
+            <span key={cond.id || index} className="block">
                 {conditionStr}
             </span>
         )
@@ -289,10 +295,10 @@ export function RulesClient() {
         <div>
             <span className="font-medium">If:</span>
             <div className="pl-4">
-                {conditionsToRender.reduce((prev, curr, i) => (
-                    // @ts-ignore
-                    [prev, (i > 0 ? <div key={`op-${i}`}>{operator}</div> : null), curr]
-                ), [])}
+                {conditionsToRender.reduce((prev: React.ReactNode[], curr, i) => {
+                    if (i === 0) return [curr];
+                    return [...prev, <div key={`op-${i}`}>{operator}</div>, curr];
+                }, [])}
             </div>
         </div>
       )
@@ -384,7 +390,7 @@ export function RulesClient() {
                                           <Select onValueChange={(value) => handleConditionChange(index, 'operator', value)} value={condition.operator}>
                                               <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                                               <SelectContent>
-                                                  {OPERATORS[selectedColumn.type as keyof typeof OPERATORS]?.map(op => (
+                                                  {(OPERATORS[selectedColumn.type as keyof typeof OPERATORS] || []).map(op => (
                                                   <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
                                                   ))}
                                               </SelectContent>
@@ -521,6 +527,7 @@ export function RulesClient() {
             </form>
           </Form>
         </DialogContent>
+      </Dialog>
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -530,10 +537,12 @@ export function RulesClient() {
                     </CardDescription>
                 </div>
                 {isReady && (
-                    <Button onClick={() => handleOpenDialog()}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Rule
-                    </Button>
+                    <DialogTrigger asChild>
+                        <Button onClick={() => handleOpenDialog()}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Rule
+                        </Button>
+                    </DialogTrigger>
                 )}
             </CardHeader>
             <CardContent>
@@ -558,10 +567,12 @@ export function RulesClient() {
                             </div>
                         </div>
                         <div className="flex items-center">
-                            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
-                                <Pencil className="h-4 w-4" />
-                                <span className="sr-only">Edit Rule</span>
-                            </Button>
+                            <DialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Edit Rule</span>
+                                </Button>
+                            </DialogTrigger>
                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
                                 <Trash className="h-4 w-4" />
                                 <span className="sr-only">Delete Rule</span>
@@ -584,7 +595,6 @@ export function RulesClient() {
             )}
             </CardContent>
         </Card>
-      </Dialog>
       </TooltipProvider>
     </div>
   );
