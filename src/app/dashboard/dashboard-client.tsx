@@ -523,6 +523,18 @@ export function DashboardClient() {
     key: keyof Asset,
     value: string | number
   ) => {
+    const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
+
+    if (isConditionField && typeof value === 'number' && (value < 1 || value > 5)) {
+        toast({
+            variant: "destructive",
+            title: "Invalid Value",
+            description: `Condition scores must be between 1 and 5.`,
+        });
+        return;
+    }
+
+
     setAssets((prevAssets) =>
       prevAssets.map((asset) => {
         if (asset.assetId === assetId) {
