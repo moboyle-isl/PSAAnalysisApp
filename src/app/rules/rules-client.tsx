@@ -306,130 +306,130 @@ export function RulesClient() {
 
   return (
     <div className="space-y-8">
-    <TooltipProvider>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editingRule ? 'Edit Rule' : 'Create a New Rule'}</DialogTitle>
-            <DialogDescription>
-              Build rules with one or more conditions to guide the AI. 
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-              
-              <FormField
-                control={form.control}
-                name="ruleType"
-                render={({ field }) => (
+        <TooltipProvider>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingRule ? 'Edit Rule' : 'Create a New Rule'}</DialogTitle>
+              <DialogDescription>
+                Build rules with one or more conditions to guide the AI.
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+
+                <FormField
+                  control={form.control}
+                  name="ruleType"
+                  render={({ field }) => (
                     <FormItem className="space-y-3">
-                    <FormLabel className="font-semibold">What kind of rule is this?</FormLabel>
-                    <FormControl>
+                      <FormLabel className="font-semibold">What kind of rule is this?</FormLabel>
+                      <FormControl>
                         <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="grid grid-cols-2 gap-4"
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="grid grid-cols-2 gap-4"
                         >
-                        <FormItem>
+                          <FormItem>
                             <FormControl>
-                            <RadioGroupItem value="REPAIR" id="repair-rule" className="peer sr-only" />
+                              <RadioGroupItem value="REPAIR" id="repair-rule" className="peer sr-only" />
                             </FormControl>
                             <FormLabel htmlFor="repair-rule" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                <Wrench className="mb-3 h-6 w-6" />
-                                Repair Recommendation
+                              <Wrench className="mb-3 h-6 w-6" />
+                              Repair Recommendation
                             </FormLabel>
-                        </FormItem>
-                        <FormItem>
+                          </FormItem>
+                          <FormItem>
                             <FormControl>
-                            <RadioGroupItem
+                              <RadioGroupItem
                                 value="REMAINING_LIFE"
                                 id="life-rule"
                                 className="peer sr-only"
-                            />
+                              />
                             </FormControl>
                             <FormLabel htmlFor="life-rule" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
-                                <Clock className="mb-3 h-6 w-6" />
-                                Remaining Life Estimation
+                              <Clock className="mb-3 h-6 w-6" />
+                              Remaining Life Estimation
                             </FormLabel>
-                        </FormItem>
+                          </FormItem>
                         </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
-                )}
+                  )}
                 />
 
-              <div className="space-y-4 p-4 border rounded-lg">
-                <Label className="font-semibold">Conditions</Label>
-                
-                {conditions.map((condition, index) => {
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <Label className="font-semibold">Conditions</Label>
+
+                  {conditions.map((condition, index) => {
                     const selectedColumn = ASSET_COLUMNS.find(c => c.key === condition.column);
 
                     return (
-                        <div key={condition.id} className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
-                            <GripVertical className="h-5 w-5 text-muted-foreground mt-9 shrink-0" />
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                  <Label>If Column...</Label>
-                                  <Select 
-                                      onValueChange={(value) => handleConditionChange(index, 'column', value)} 
-                                      value={condition.column}>
-                                      <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
-                                      <SelectContent>
-                                          {ASSET_COLUMNS.map(col => (
-                                          <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
-                                          ))}
-                                      </SelectContent>
+                      <div key={condition.id} className="flex items-start gap-2 p-3 bg-muted/50 rounded-md">
+                        <GripVertical className="h-5 w-5 text-muted-foreground mt-9 shrink-0" />
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label>If Column...</Label>
+                            <Select
+                              onValueChange={(value) => handleConditionChange(index, 'column', value)}
+                              value={condition.column}>
+                              <SelectTrigger><SelectValue placeholder="Select a column..." /></SelectTrigger>
+                              <SelectContent>
+                                {ASSET_COLUMNS.map(col => (
+                                  <SelectItem key={col.key} value={col.key}>{col.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {selectedColumn && selectedColumn.type !== 'string' && (
+                            <>
+                              <div className="space-y-2">
+                                <Label>Is...</Label>
+                                <Select onValueChange={(value) => handleConditionChange(index, 'operator', value)} value={condition.operator}>
+                                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                  <SelectContent>
+                                    {(OPERATORS[selectedColumn.type as keyof typeof OPERATORS] || []).map(op => (
+                                      <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Than...</Label>
+                                {selectedColumn.type === 'enum' ? (
+                                  <Select onValueChange={(value) => handleConditionChange(index, 'value', value)} value={condition.value as string}>
+                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                    <SelectContent>
+                                      {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                    </SelectContent>
                                   </Select>
-                                </div>
-
-                                {selectedColumn && selectedColumn.type !== 'string' && (
-                                    <>
-                                        <div className="space-y-2">
-                                          <Label>Is...</Label>
-                                          <Select onValueChange={(value) => handleConditionChange(index, 'operator', value)} value={condition.operator}>
-                                              <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                              <SelectContent>
-                                                  {(OPERATORS[selectedColumn.type as keyof typeof OPERATORS] || []).map(op => (
-                                                  <SelectItem key={op.value} value={op.value}>{op.label}</SelectItem>
-                                                  ))}
-                                              </SelectContent>
-                                          </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Than...</Label>
-                                            {selectedColumn.type === 'enum' ? (
-                                                <Select onValueChange={(value) => handleConditionChange(index, 'value', value)} value={condition.value as string}>
-                                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                                    <SelectContent>
-                                                        {selectedColumn.options?.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : (
-                                                <Input placeholder="Enter value" type="number" value={condition.value ?? ''} onChange={(e) => handleConditionChange(index, 'value', e.target.value)} />
-                                            )}
-                                        </div>
-                                    </>
+                                ) : (
+                                  <Input placeholder="Enter value" type="number" value={condition.value ?? ''} onChange={(e) => handleConditionChange(index, 'value', e.target.value)} />
                                 )}
-                                 {selectedColumn && selectedColumn.type === 'string' && (
-                                     <div className="space-y-2 md:col-span-2">
-                                        <Label>And contains this text...</Label>
-                                        <Input placeholder="e.g., 'roots', 'damaged lid'" value={condition.conditionText ?? ''} onChange={(e) => handleConditionChange(index, 'conditionText', e.target.value)} />
-                                     </div>
-                                 )}
+                              </div>
+                            </>
+                          )}
+                          {selectedColumn && selectedColumn.type === 'string' && (
+                            <div className="space-y-2 md:col-span-2">
+                              <Label>And contains this text...</Label>
+                              <Input placeholder="e.g., 'roots', 'damaged lid'" value={condition.conditionText ?? ''} onChange={(e) => handleConditionChange(index, 'conditionText', e.target.value)} />
                             </div>
-                            <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive mt-7" onClick={() => handleRemoveCondition(index)}>
-                                <Trash className="h-4 w-4" />
-                            </Button>
+                          )}
                         </div>
+                        <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive mt-7" onClick={() => handleRemoveCondition(index)}>
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     )
-                })}
-                 <Button type="button" variant="outline" size="sm" onClick={handleAddNewCondition}>
+                  })}
+                  <Button type="button" variant="outline" size="sm" onClick={handleAddNewCondition}>
                     <Plus className="mr-2 h-4 w-4" /> Add Condition
-                </Button>
-              </div>
+                  </Button>
+                </div>
 
-               {conditions.length > 1 && (
+                {conditions.length > 1 && (
                   <FormField
                     control={form.control}
                     name="logicalOperator"
@@ -463,141 +463,139 @@ export function RulesClient() {
                         <FormMessage />
                       </FormItem>
                     )}
-                />
-               )}
-              
-               <div className="space-y-2 p-4 border rounded-lg">
-                <Label className="font-semibold flex items-center gap-2">
+                  />
+                )}
+
+                <div className="space-y-2 p-4 border rounded-lg">
+                  <Label className="font-semibold flex items-center gap-2">
                     Then, Define Outcome...
                     <Tooltip>
-                        <TooltipTrigger asChild>
-                            <CircleHelp className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="max-w-xs">
-                                {watchRuleType === 'REPAIR' 
-                                    ? "This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost."
-                                    : "This is the remaining life that will be assigned if the conditions are met."
-                                }
-                            </p>
-                        </TooltipContent>
+                      <TooltipTrigger asChild>
+                        <CircleHelp className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          {watchRuleType === 'REPAIR'
+                            ? "This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost."
+                            : "This is the remaining life that will be assigned if the conditions are met."
+                          }
+                        </p>
+                      </TooltipContent>
                     </Tooltip>
-                </Label>
-                {watchRuleType === 'REPAIR' && (
+                  </Label>
+                  {watchRuleType === 'REPAIR' && (
                     <FormField
-                        control={form.control}
-                        name="recommendationText"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+                      control={form.control}
+                      name="recommendationText"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormControl>
+                            <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                )}
-                 {watchRuleType === 'REMAINING_LIFE' && (
+                  )}
+                  {watchRuleType === 'REMAINING_LIFE' && (
                     <FormField
-                        control={form.control}
-                        name="lifeExpectancy"
-                        render={({ field }) => (
-                            <FormItem>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger><SelectValue placeholder="Select a life expectancy range..." /></SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {lifeExpectancyOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+                      control={form.control}
+                      name="lifeExpectancy"
+                      render={({ field }) => (
+                        <FormItem>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Select a life expectancy range..." /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {lifeExpectancyOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
-                 )}
-              </div>
+                  )}
+                </div>
 
-              <DialogFooter>
+                <DialogFooter>
                   <DialogClose asChild>
                     <Button type="button" variant="outline">Cancel</Button>
                   </DialogClose>
                   <Button type="submit">{editingRule ? 'Save Changes' : 'Add Rule'}</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-        <Card>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Active Rules</CardTitle>
-                    <CardDescription>
-                        These rules will be sent to the AI to influence its recommendations.
-                    </CardDescription>
-                </div>
-                {isReady && (
-                    <DialogTrigger asChild>
-                        <Button onClick={() => handleOpenDialog()}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Rule
-                        </Button>
-                    </DialogTrigger>
-                )}
+              <div>
+                <CardTitle>Active Rules</CardTitle>
+                <CardDescription>
+                  These rules will be sent to the AI to influence its recommendations.
+                </CardDescription>
+              </div>
+              {isReady && (
+                <DialogTrigger asChild>
+                  <Button onClick={() => handleOpenDialog()}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Rule
+                  </Button>
+                </DialogTrigger>
+              )}
             </CardHeader>
             <CardContent>
-            {isReady ? (
+              {isReady ? (
                 rules.length > 0 ? (
-                <ul className="space-y-4">
+                  <ul className="space-y-4">
                     {rules.map(rule => (
-                    <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
+                      <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
                         <div className="flex items-start gap-3">
-                            {rule.ruleType === 'REPAIR' 
-                                ? <Wrench className="h-5 w-5 text-primary shrink-0 mt-1" />
-                                : <Clock className="h-5 w-5 text-primary shrink-0 mt-1" />
-                            }
-                            <div className="flex-1">
-                                {renderRule(rule)}
-                                <Separator className="my-2" />
-                                {rule.ruleType === 'REPAIR' ? (
-                                    <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
-                                ) : (
-                                    <p className="text-sm">Then, remaining life is: <span className="font-semibold text-primary">{rule.lifeExpectancy}</span></p>
-                                )}
-                            </div>
+                          {rule.ruleType === 'REPAIR'
+                            ? <Wrench className="h-5 w-5 text-primary shrink-0 mt-1" />
+                            : <Clock className="h-5 w-5 text-primary shrink-0 mt-1" />
+                          }
+                          <div className="flex-1">
+                            {renderRule(rule)}
+                            <Separator className="my-2" />
+                            {rule.ruleType === 'REPAIR' ? (
+                              <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
+                            ) : (
+                              <p className="text-sm">Then, remaining life is: <span className="font-semibold text-primary">{rule.lifeExpectancy}</span></p>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center">
-                            <DialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
-                                    <Pencil className="h-4 w-4" />
-                                    <span className="sr-only">Edit Rule</span>
-                                </Button>
-                            </DialogTrigger>
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
-                                <Trash className="h-4 w-4" />
-                                <span className="sr-only">Delete Rule</span>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit Rule</span>
                             </Button>
+                          </DialogTrigger>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
+                            <Trash className="h-4 w-4" />
+                            <span className="sr-only">Delete Rule</span>
+                          </Button>
                         </div>
-                    </li>
+                      </li>
                     ))}
-                </ul>
+                  </ul>
                 ) : (
-                <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
+                  <div className="text-center text-muted-foreground py-8 border-2 border-dashed rounded-lg">
                     <p>No rules defined yet.</p>
                     <p className="text-sm">Click "Add Rule" to create your first one.</p>
-                </div>
+                  </div>
                 )
-            ) : (
+              ) : (
                 <div className="space-y-2">
-                    <Skeleton className="h-24 w-full" />
-                    <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
                 </div>
-            )}
+              )}
             </CardContent>
-        </Card>
-      </TooltipProvider>
+          </Card>
+        </TooltipProvider>
+      </Dialog>
     </div>
   );
 }
-
-    
