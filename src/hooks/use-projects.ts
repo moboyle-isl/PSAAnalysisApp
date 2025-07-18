@@ -108,11 +108,15 @@ export function useProjects() {
   
   // Ensure default project exists on first load
   useEffect(() => {
-    const defaultProjectExists = projects.some(p => p.id === DEFAULT_PROJECT_ID);
-    if (isReady && !defaultProjectExists) {
+    if (projects && projects.length > 0) {
+      const defaultProjectExists = projects.some(p => p.id === DEFAULT_PROJECT_ID);
+      if (!defaultProjectExists) {
         setProjects(prev => [DEFAULT_PROJECT, ...prev]);
+      }
+    } else {
+       setProjects([DEFAULT_PROJECT]);
     }
-  }, [isReady, projects, setProjects]);
+  }, [projects, setProjects]);
 
 
   // Create stable setters for individual data types

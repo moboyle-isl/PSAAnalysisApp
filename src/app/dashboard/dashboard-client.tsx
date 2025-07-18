@@ -377,29 +377,32 @@ export function DashboardClient() {
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
     try {
-      // Convert rules to a string format for the prompt
-      const rulesString = rules.map(rule => {
+      const createRuleString = (rule: Rule) => {
         if (!rule.conditions || rule.conditions.length === 0) return '';
         const conditionsString = rule.conditions.map(condition => {
-            const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
-            
-            if (columnLabel === 'Field Notes') {
-                return `${columnLabel} contains "${condition.conditionText}"`;
-            }
-            if (condition.operator) {
-              const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
-              return `${columnLabel} ${operatorText} ${condition.value}`;
-            }
-            return '';
+          const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
+          if (columnLabel === 'Field Notes') {
+            return `${columnLabel} contains "${condition.conditionText}"`;
+          }
+          if (condition.operator) {
+            const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+            return `${columnLabel} ${operatorText} ${condition.value}`;
+          }
+          return '';
         }).filter(Boolean).join(` ${rule.logicalOperator} `);
 
-        return `If (${conditionsString}), then recommend: "${rule.recommendationText}"`;
-      }).filter(Boolean).join('\n');
+        const outcome = rule.ruleType === 'REPAIR' ? `then recommend: "${rule.recommendationText}"` : `then remaining life is: "${rule.lifeExpectancy}"`;
+        return `If (${conditionsString}), ${outcome}`;
+      };
+
+      const repairRulesString = rules.filter(r => r.ruleType === 'REPAIR').map(createRuleString).filter(Boolean).join('\n');
+      const lifeRulesString = rules.filter(r => r.ruleType === 'REMAINING_LIFE').map(createRuleString).filter(Boolean).join('\n');
 
       const result = await recommendRepairsForAllAssets({
         assets: assets,
         repairPrices: repairPrices,
-        userDefinedRules: rulesString,
+        repairRules: repairRulesString,
+        lifeRules: lifeRulesString,
       });
 
       const recommendationsMap = new Map(
@@ -525,13 +528,16 @@ export function DashboardClient() {
   ) => {
     const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
 
-    if (isConditionField && typeof value === 'number' && (value < 1 || value > 5)) {
+    if (isConditionField) {
+      const numValue = Number(value);
+      if (numValue < 1 || numValue > 5) {
         toast({
             variant: "destructive",
             title: "Invalid Value",
             description: `Condition scores must be between 1 and 5.`,
         });
         return;
+      }
     }
 
 

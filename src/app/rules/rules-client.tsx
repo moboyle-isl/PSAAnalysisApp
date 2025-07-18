@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Plus, Trash, Wand2, Pencil, GripVertical, CircleHelp } from 'lucide-react';
+import { Plus, Trash, Wand2, Pencil, GripVertical, CircleHelp, Wrench, Clock } from 'lucide-react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -44,11 +44,15 @@ export type Condition = {
   conditionText?: string;
 };
 
+const lifeExpectancyOptions = ["0-5 years", "5-10 years", "10-15 years", "15-20 years", "20-25 years"] as const;
+
 export type Rule = {
   id: string;
+  ruleType: 'REPAIR' | 'REMAINING_LIFE';
   conditions: Condition[];
   logicalOperator: 'AND' | 'OR';
-  recommendationText: string;
+  recommendationText?: string;
+  lifeExpectancy?: typeof lifeExpectancyOptions[number];
 };
 
 export const ASSET_COLUMNS = [
@@ -109,10 +113,28 @@ const conditionSchema = z.object({
 
 
 const ruleSchema = z.object({
+    ruleType: z.enum(['REPAIR', 'REMAINING_LIFE']),
     conditions: z.array(conditionSchema).min(1, "Please add at least one condition."),
     logicalOperator: z.enum(['AND', 'OR']),
-    recommendationText: z.string().min(1, 'Please provide a recommendation.'),
-})
+    recommendationText: z.string().optional(),
+    lifeExpectancy: z.enum(lifeExpectancyOptions).optional(),
+}).refine(data => {
+    if (data.ruleType === 'REPAIR') {
+        return !!data.recommendationText && data.recommendationText.length > 0;
+    }
+    return true;
+}, {
+    message: 'Please provide a recommendation.',
+    path: ['recommendationText'],
+}).refine(data => {
+    if (data.ruleType === 'REMAINING_LIFE') {
+        return !!data.lifeExpectancy;
+    }
+    return true;
+}, {
+    message: 'Please select a life expectancy.',
+    path: ['lifeExpectancy'],
+});
 
 export function RulesClient() {
   const { rules, setRules, isReady } = useProjects();
@@ -122,9 +144,11 @@ export function RulesClient() {
   const form = useForm<z.infer<typeof ruleSchema>>({
     resolver: zodResolver(ruleSchema),
     defaultValues: {
+        ruleType: 'REPAIR',
         conditions: [],
         logicalOperator: 'AND',
         recommendationText: '',
+        lifeExpectancy: undefined,
     },
   });
 
@@ -134,6 +158,7 @@ export function RulesClient() {
   });
 
   const watchConditions = form.watch('conditions');
+  const watchRuleType = form.watch('ruleType');
   
   const handleAddNewCondition = () => {
     const firstColumn = ASSET_COLUMNS[0];
@@ -159,7 +184,7 @@ export function RulesClient() {
       const updatedRule: Rule = { ...editingRule, ...data };
       setRules(rules.map(r => r.id === editingRule.id ? updatedRule : r));
     } else {
-      const newRule: Rule = { id: `RULE-${Date.now()}`, ...data };
+      const newRule: Rule = { id: `RULE-${Date.now()}`, ...data, recommendationText: data.recommendationText || undefined, lifeExpectancy: data.lifeExpectancy || undefined };
       setRules([...rules, newRule]);
     }
     
@@ -183,9 +208,11 @@ export function RulesClient() {
     } else {
         replace([]); // Clear existing fields
         form.reset({
+            ruleType: 'REPAIR',
             conditions: [],
             logicalOperator: 'AND',
             recommendationText: '',
+            lifeExpectancy: undefined,
         });
     }
     setIsDialogOpen(true);
@@ -244,12 +271,52 @@ export function RulesClient() {
             <DialogTitle>{editingRule ? 'Edit Rule' : 'Create a New Rule'}</DialogTitle>
             <DialogDescription>
               Build rules with one or more conditions to guide the AI. 
-              For example: "If System Type = Septic Tank AND Setback Water (m) &lt; 10..."
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
               
+              <FormField
+                control={form.control}
+                name="ruleType"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                    <FormLabel className="font-semibold">What kind of rule is this?</FormLabel>
+                    <FormControl>
+                        <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="grid grid-cols-2 gap-4"
+                        >
+                        <FormItem>
+                            <FormControl>
+                            <RadioGroupItem value="REPAIR" id="repair-rule" className="peer sr-only" />
+                            </FormControl>
+                            <FormLabel htmlFor="repair-rule" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                <Wrench className="mb-3 h-6 w-6" />
+                                Repair Recommendation
+                            </FormLabel>
+                        </FormItem>
+                        <FormItem>
+                            <FormControl>
+                            <RadioGroupItem
+                                value="REMAINING_LIFE"
+                                id="life-rule"
+                                className="peer sr-only"
+                            />
+                            </FormControl>
+                            <FormLabel htmlFor="life-rule" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                                <Clock className="mb-3 h-6 w-6" />
+                                Remaining Life Estimation
+                            </FormLabel>
+                        </FormItem>
+                        </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
               <div className="space-y-4 p-4 border rounded-lg">
                 <Label className="font-semibold">Conditions</Label>
                 
@@ -400,29 +467,55 @@ export function RulesClient() {
                )}
               
                <div className="space-y-2 p-4 border rounded-lg">
-                <FormField
-                    control={form.control}
-                    name="recommendationText"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-semibold flex items-center gap-2">
-                                Then, Recommend...
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <CircleHelp className="h-4 w-4 text-muted-foreground" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p className="max-w-xs">This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </FormLabel>
-                            <FormControl>
-                                <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <Label className="font-semibold flex items-center gap-2">
+                    Then, Define Outcome...
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <CircleHelp className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p className="max-w-xs">
+                                {watchRuleType === 'REPAIR' 
+                                    ? "This is the exact recommendation text the AI will use. It should match an item in your Price list if you want to auto-assign a cost."
+                                    : "This is the remaining life that will be assigned if the conditions are met."
+                                }
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                </Label>
+                {watchRuleType === 'REPAIR' && (
+                    <FormField
+                        control={form.control}
+                        name="recommendationText"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <Textarea placeholder="e.g., A full system replacement." {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                )}
+                 {watchRuleType === 'REMAINING_LIFE' && (
+                    <FormField
+                        control={form.control}
+                        name="lifeExpectancy"
+                        render={({ field }) => (
+                            <FormItem>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger><SelectValue placeholder="Select a life expectancy range..." /></SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {lifeExpectancyOptions.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                 )}
               </div>
 
               <DialogFooter>
@@ -459,11 +552,18 @@ export function RulesClient() {
                     {rules.map(rule => (
                     <li key={rule.id} className="flex items-start justify-between gap-4 p-4 border rounded-lg">
                         <div className="flex items-start gap-3">
-                            <Wand2 className="h-5 w-5 text-primary shrink-0 mt-1" />
+                            {rule.ruleType === 'REPAIR' 
+                                ? <Wrench className="h-5 w-5 text-primary shrink-0 mt-1" />
+                                : <Clock className="h-5 w-5 text-primary shrink-0 mt-1" />
+                            }
                             <div className="flex-1">
                                 {renderRule(rule)}
                                 <Separator className="my-2" />
-                                <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
+                                {rule.ruleType === 'REPAIR' ? (
+                                    <p className="text-sm">Then, recommend: <span className="font-semibold text-primary">{rule.recommendationText}</span></p>
+                                ) : (
+                                    <p className="text-sm">Then, remaining life is: <span className="font-semibold text-primary">{rule.lifeExpectancy}</span></p>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center">

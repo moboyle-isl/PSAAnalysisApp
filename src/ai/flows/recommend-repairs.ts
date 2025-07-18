@@ -59,7 +59,8 @@ const RepairPriceSchema = z.object({
 const RecommendRepairsAllAssetsInputSchema = z.object({
     assets: z.array(AssetSchema),
     repairPrices: z.array(RepairPriceSchema).describe("A list of available repair types and their unit prices."),
-    userDefinedRules: z.string().describe('A string containing user-defined rules, where each rule is on a new line.'),
+    repairRules: z.string().describe("A string containing user-defined rules for REPAIR recommendations, where each rule is on a new line."),
+    lifeRules: z.string().describe("A string containing user-defined rules for REMAINING LIFE estimations, where each rule is on a new line."),
 });
 
 export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllAssetsInputSchema>;
@@ -121,18 +122,18 @@ You must provide a response for every asset.
 ---
 **TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
 For each asset, provide an estimate of its remaining useful life.
+- First, check if the asset matches any of the "Remaining Life Rules" provided. If a rule matches, you MUST use the life expectancy from that rule.
+- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
 - You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", "20-25 years".
 - The maximum value is "20-25 years".
-- Base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
-- Pay close attention to the 'User-Defined Rules', as they may contain guidance on expected lifespans (e.g., "Concrete tanks have a 50-year life"). This is crucial input for your estimation.
-- If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years'.
+- If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule specifies otherwise.
 
 ---
 **TASK 2: RECOMMEND REPAIRS (FOR EACH ASSET)**
 After estimating the remaining life, determine the appropriate repair recommendation by following this logic precisely:
 
-1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
-    - For each asset, check if its data matches any of the user-defined rules provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
+1.  **PRIORITY 1: APPLY USER-DEFINED REPAIR RULES.**
+    - For each asset, check if its data matches any of the user-defined "Repair Rules" provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
     - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
     - When a rule matches:
         - Set 'recommendation' to the text provided in the rule.
@@ -142,7 +143,7 @@ After estimating the remaining life, determine the appropriate repair recommenda
         - If you DO NOT find a confident match, set 'estimatedCost' to 0 and 'needsPrice' to true.
     - Once a rule matches, STOP further repair analysis for that asset and use this as its recommendation for Task 2.
 
-2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no rule applies).**
+2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no repair rule applies).**
     - If no user rule matches an asset, then analyze its 'Field Notes' and other properties.
     - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
     - If a confident match is found:
@@ -170,11 +171,19 @@ After estimating the remaining life, determine the appropriate repair recommenda
     - Set 'estimatedCost' to 0 and 'needsPrice' to false.
 
 ---
-**User-Defined Rules (Used for BOTH tasks):**
-{{#if userDefinedRules}}
-{{{userDefinedRules}}}
+**Remaining Life Rules (Used for Task 1):**
+{{#if lifeRules}}
+{{{lifeRules}}}
 {{else}}
-No user-defined rules provided.
+No user-defined life estimation rules provided.
+{{/if}}
+
+---
+**Repair Rules (Used for Task 2):**
+{{#if repairRules}}
+{{{repairRules}}}
+{{else}}
+No user-defined repair rules provided.
 {{/if}}
 
 ---
