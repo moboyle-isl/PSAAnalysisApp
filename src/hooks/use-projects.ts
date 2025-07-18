@@ -21,7 +21,7 @@ type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const a = initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false }));
+const a = initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,
