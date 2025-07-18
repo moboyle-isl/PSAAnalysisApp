@@ -22,7 +22,7 @@ type ProjectSnapshot = {
 };
 
 // Define the structure of a project
-type Project = {
+export type Project = {
   id: string;
   name: string;
   snapshot: ProjectSnapshot;
@@ -68,7 +68,7 @@ export function useProjects() {
     const projectToLoad = projects.find((p) => p.id === projectId);
     if (projectToLoad) {
       setActiveProjectId(projectId);
-      setActiveProjectState(projectToLoad.snapshot);
+      // State will update via the useEffect above
     }
   }, [projects, setActiveProjectId]);
 
@@ -101,13 +101,15 @@ export function useProjects() {
       return;
     }
     setProjects(prev => prev.filter(p => p.id !== projectId));
-    loadProject(DEFAULT_PROJECT_ID);
-  }, [setProjects, loadProject]);
+    // After deleting, switch to the default project
+    setActiveProjectId(DEFAULT_PROJECT_ID);
+  }, [setProjects, setActiveProjectId]);
   
   
   // Ensure default project exists on first load
   useEffect(() => {
-    if (isReady && !projects.find(p => p.id === DEFAULT_PROJECT_ID)) {
+    const defaultProjectExists = projects.some(p => p.id === DEFAULT_PROJECT_ID);
+    if (isReady && !defaultProjectExists) {
         setProjects(prev => [DEFAULT_PROJECT, ...prev]);
     }
   }, [isReady, projects, setProjects]);
@@ -137,11 +139,14 @@ export function useProjects() {
       return { ...prev, aiRules: newRules };
     });
   }, []);
+  
+  const activeProject = projects.find(p => p.id === activeProjectId);
 
   return {
     isReady,
     projects,
     activeProjectId,
+    activeProject: activeProject,
     assets: activeProjectState?.assets ?? [],
     setAssets,
     repairPrices: activeProjectState?.repairPrices ?? [],
