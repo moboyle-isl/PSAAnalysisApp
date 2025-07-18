@@ -120,8 +120,8 @@ const OPERATOR_TEXT_MAP: Record<string, string> = {
   equals: 'is equal to',
   not_contains: 'does not contain',
   not_equals: 'is not equal to',
-  eq: 'is equal to',
-  neq: 'is not equal to',
+  eq: 'is',
+  neq: 'is not',
   gt: 'is greater than',
   gte: 'is greater than or equal to',
   lt: 'is less than',
@@ -367,9 +367,11 @@ export function DashboardClient() {
                 return `${columnLabel} contains "${condition.conditionText}"`;
             }
 
-            if (condition.operator) {
-                const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
-                return `${columnLabel} ${operatorText} ${condition.value}`;
+            if (columnDef.type === 'number' || columnDef.type === 'enum') {
+                 if (condition.operator) {
+                    const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+                    return `${columnLabel} ${operatorText} ${condition.value}`;
+                }
             }
 
             return null; // Should not happen with validation
