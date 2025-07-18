@@ -362,14 +362,14 @@ export function DashboardClient() {
             if (!columnDef) return null; // Skip if column not found
             
             const columnLabel = columnDef.label;
+            const operatorText = condition.operator ? OPERATOR_TEXT_MAP[condition.operator] : '';
 
-            if (columnDef.type === 'string') {
-                return `${columnLabel} contains "${condition.conditionText}"`;
+            if (columnDef.type === 'string' && condition.conditionText) {
+                return `${columnLabel} ${operatorText} "${condition.conditionText}"`;
             }
 
-            if (columnDef.type === 'number' || columnDef.type === 'enum') {
-                 if (condition.operator) {
-                    const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+            if ((columnDef.type === 'number' || columnDef.type === 'enum') && condition.value !== undefined) {
+                 if (operatorText) {
                     return `${columnLabel} ${operatorText} ${condition.value}`;
                 }
             }
@@ -1254,3 +1254,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
