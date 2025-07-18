@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Download, Upload } from 'lucide-react';
 import { initialAssets } from '@/lib/data';
 import { DashboardClient } from './dashboard-client';
+import { ProjectSwitcher } from '@/components/project-switcher';
 
 export default function DashboardPage() {
   return (
@@ -11,6 +12,7 @@ export default function DashboardPage() {
         title="Asset Dashboard"
         description="View, edit, and analyze asset data with AI-powered recommendations."
       >
+        <ProjectSwitcher />
         <Button variant="outline">
           <Upload className="mr-2 h-4 w-4" />
           Upload Data

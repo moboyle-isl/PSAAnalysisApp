@@ -36,6 +36,13 @@ export function PricingClient() {
 
   useEffect(() => {
     setIsClient(true);
+    const handleProjectLoad = () => {
+        window.location.reload();
+    };
+    window.addEventListener('project-loaded', handleProjectLoad);
+    return () => {
+        window.removeEventListener('project-loaded', handleProjectLoad);
+    };
   }, []);
 
 

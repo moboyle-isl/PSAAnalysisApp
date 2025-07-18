@@ -229,12 +229,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
 
   useEffect(() => {
     setIsClient(true);
-    // On mount, check if local storage has been initialized. If not, use the server-provided data.
-    const storedAssets = window.localStorage.getItem('assets');
-    if (!storedAssets || JSON.parse(storedAssets).length === 0) {
-      setAssets(data.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
-    }
-  }, [data, setAssets]);
+  }, []);
   
   const [columnVisibility, setColumnVisibility] = useLocalStorage<
     Record<string, boolean>
@@ -313,9 +308,9 @@ export function DashboardClient({ data }: { data: Asset[] }) {
                 const strValue = String(assetValue).toLowerCase();
                 const filterStrValue = String(filter.value).toLowerCase();
                 if (filter.operator === 'contains') return strValue.includes(filterStrValue);
-                if (filter.operator === 'equals') return strValue === filterStrValue;
+                if (filter.operator === 'equals' || filter.operator === 'eq') return strValue === filterStrValue;
                 if (filter.operator === 'not_contains') return !strValue.includes(filterStrValue);
-                if (filter.operator === 'not_equals') return strValue !== filterStrValue;
+                if (filter.operator === 'not_equals' || filter.operator === 'neq') return strValue !== filterStrValue;
                 break;
               case 'number':
                 const numValue = Number(assetValue);

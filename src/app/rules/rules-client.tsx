@@ -122,6 +122,13 @@ export function RulesClient() {
   
   useEffect(() => {
     setIsClient(true);
+    const handleProjectLoad = () => {
+        window.location.reload();
+    };
+    window.addEventListener('project-loaded', handleProjectLoad);
+    return () => {
+        window.removeEventListener('project-loaded', handleProjectLoad);
+    };
   }, []);
 
   const form = useForm<z.infer<typeof ruleSchema>>({
