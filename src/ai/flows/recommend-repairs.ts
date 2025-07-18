@@ -70,6 +70,7 @@ const SingleAssetRecommendationSchema = z.object({
     recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return 'None'."),
     estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
     needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided list, otherwise set to false."),
+    estimatedRemainingLife: z.string().describe("An estimate of the remaining life of the asset in years (e.g., '5 years', '10-15 years', 'Unknown'). Base this on the asset's age, condition, material, and any relevant user-defined rules."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -111,9 +112,18 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI asset management expert. Your task is to provide repair recommendations for a list of assets.
+  prompt: `You are an AI asset management expert. Your task is to provide repair recommendations AND estimate the remaining life for a list of assets.
 
 You MUST follow this logic precisely for each asset:
+
+**TASK 1: ESTIMATE REMAINING LIFE**
+For each asset, provide an estimate of its remaining useful life in years.
+- Base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
+- Pay close attention to the 'User-Defined Rules', as they may contain guidance on expected lifespans (e.g., "Concrete tanks have a 50-year life").
+- If a replacement is recommended, the remaining life should be '0 years'.
+- Express the estimate as a string (e.g., "5 years", "10-15 years", "20+ years").
+
+**TASK 2: RECOMMEND REPAIRS**
 1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
     - For each asset, check if its data matches any of the user-defined rules provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
     - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
@@ -188,7 +198,7 @@ No user-defined rules provided.
   - Field Notes: "{{fieldNotes}}"
 {{/each}}
 
-Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema.
+Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema. Ensure all fields in the output schema are populated for every asset.
 `,
   config: {
     safetySettings: [

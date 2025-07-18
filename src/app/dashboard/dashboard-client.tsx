@@ -77,6 +77,7 @@ type AssetWithRecommendation = Asset & {
   recommendation?: string;
   estimatedCost?: number;
   needsPrice?: boolean;
+  estimatedRemainingLife?: string;
 };
 
 type Column = {
@@ -107,6 +108,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
     { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
+    { key: 'estimatedRemainingLife', label: 'Est. Remaining Life', type: 'string', width: '150px' },
     { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
 
@@ -186,7 +188,7 @@ const newAssetSchema = z.object({
 });
 
 
-export function DashboardClient({ data }: { data: Asset[] }) {
+export function DashboardClient() {
   const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
   const [repairPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [rules] = useLocalStorage<Rule[]>('aiRules', []);
@@ -253,6 +255,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     fieldNotes: true,
     recommendation: true,
     estimatedCost: true,
+    estimatedRemainingLife: true,
     actions: true,
   });
 
@@ -362,13 +365,15 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     try {
       // Convert rules to a string format for the prompt
       const rulesString = rules.map(rule => {
+        if (!rule.conditions || rule.conditions.length === 0) return '';
         const conditionsString = rule.conditions.map(condition => {
             const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
-            if (condition.ruleType === 'fixed' && condition.operator) {
-                const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
-                return `${columnLabel} ${operatorText} ${condition.value}`;
-            } else if (condition.ruleType === 'text' && condition.conditionText) {
-                return `${columnLabel} contains "${condition.conditionText}"`;
+            if (condition.ruleType === 'text') {
+              return `${columnLabel} contains "${condition.conditionText}"`;
+            }
+            if (condition.operator) {
+              const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+              return `${columnLabel} ${operatorText} ${condition.value}`;
             }
             return '';
         }).filter(Boolean).join(` ${rule.logicalOperator} `);
@@ -383,7 +388,12 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       });
 
       const recommendationsMap = new Map(
-        result.recommendations.map((r) => [r.assetId, { recommendation: r.recommendation, estimatedCost: r.estimatedCost, needsPrice: r.needsPrice }])
+        result.recommendations.map((r) => [r.assetId, { 
+            recommendation: r.recommendation, 
+            estimatedCost: r.estimatedCost, 
+            needsPrice: r.needsPrice,
+            estimatedRemainingLife: r.estimatedRemainingLife,
+        }])
       );
 
       setAssets((prevAssets) =>
@@ -394,6 +404,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
             recommendation: rec.recommendation,
             estimatedCost: rec.estimatedCost,
             needsPrice: rec.needsPrice,
+            estimatedRemainingLife: rec.estimatedRemainingLife,
           } : asset;
         })
       );
@@ -569,7 +580,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
           </Select>
         );
       }
-      if (key === 'fieldNotes' || key === 'recommendation') {
+      if (key === 'fieldNotes' || key === 'recommendation' || key === 'estimatedRemainingLife') {
          return (
           <Textarea
             autoFocus
@@ -635,7 +646,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
       );
     }
     
-    if (key === 'fieldNotes') {
+    if (key === 'fieldNotes' || key === 'estimatedRemainingLife') {
         return <span className="whitespace-pre-wrap">{String(value ?? '')}</span>;
     }
 
@@ -643,7 +654,7 @@ export function DashboardClient({ data }: { data: Asset[] }) {
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
-    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost' || key === 'actions') return false;
+    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost' || key === 'actions' || key === 'estimatedRemainingLife') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
   }
