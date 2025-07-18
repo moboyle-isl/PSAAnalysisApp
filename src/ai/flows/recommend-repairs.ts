@@ -70,7 +70,7 @@ const SingleAssetRecommendationSchema = z.object({
     recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return 'None'."),
     estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
     needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided list, otherwise set to false."),
-    estimatedRemainingLife: z.string().describe("An estimate of the remaining life of the asset in years (e.g., '5 years', '10-15 years', 'Unknown'). Base this on the asset's age, condition, material, and any relevant user-defined rules."),
+    estimatedRemainingLife: z.string().describe("An estimate of the remaining life of the asset. It MUST be one of the following values: '0-5 years', '5-10 years', '10-15 years', '15-20 years', or '20-25 years'."),
 });
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
@@ -117,11 +117,12 @@ const allAssetsPrompt = ai.definePrompt({
 You MUST follow this logic precisely for each asset:
 
 **TASK 1: ESTIMATE REMAINING LIFE**
-For each asset, provide an estimate of its remaining useful life in years.
+For each asset, provide an estimate of its remaining useful life.
+- You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", "20-25 years".
+- The maximum value is "20-25 years".
 - Base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
 - Pay close attention to the 'User-Defined Rules', as they may contain guidance on expected lifespans (e.g., "Concrete tanks have a 50-year life").
-- If a replacement is recommended, the remaining life should be '0 years'.
-- Express the estimate as a string (e.g., "5 years", "10-15 years", "20+ years").
+- If a replacement is recommended, the remaining life should be '0-5 years'.
 
 **TASK 2: RECOMMEND REPAIRS**
 1.  **PRIORITY 1: APPLY USER-DEFINED RULES.**
