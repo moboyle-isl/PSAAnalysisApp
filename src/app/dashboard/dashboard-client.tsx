@@ -267,9 +267,6 @@ export function DashboardClient() {
   const [sortPopoverOpen, setSortPopoverOpen] = useState(false);
   const [currentSort, setCurrentSort] = useState<{key: string, direction: 'ascending' | 'descending'}>(sortConfig ? {key: sortConfig.key, direction: sortConfig.direction} : { key: 'assetId', direction: 'ascending' });
 
-  const visibleColumns = ALL_COLUMNS.filter(
-    (column) => columnVisibility[column.key]
-  );
   
   const handleAddFilter = () => {
     if (currentFilter.column && currentFilter.operator && currentFilter.value !== undefined && currentFilter.value !== '') {
@@ -289,10 +286,16 @@ export function DashboardClient() {
     setFilters(filters.filter(f => f.id !== id));
   };
   
-  const processedAssets = useMemo(() => {
+  const { processedAssets, visibleColumns } = useMemo(() => {
     if (!isClient) {
-      return []; // Return empty array on server to avoid hydration mismatch
+      // On the server, return default state to avoid hydration errors
+      return { processedAssets: [], visibleColumns: ALL_COLUMNS };
     }
+    
+    // Client-side only logic
+    const currentVisibleColumns = ALL_COLUMNS.filter(
+      (column) => columnVisibility[column.key]
+    );
     
     let assetsToProcess = [...assets];
     
@@ -352,8 +355,8 @@ export function DashboardClient() {
     }
 
 
-    return assetsToProcess;
-  }, [isClient, assets, filters, sortConfig]);
+    return { processedAssets: assetsToProcess, visibleColumns: currentVisibleColumns };
+  }, [isClient, assets, filters, sortConfig, columnVisibility]);
   
   const totalRepairCost = useMemo(() => {
     return processedAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
@@ -1139,3 +1142,5 @@ export function DashboardClient() {
 }
 
   
+
+    
