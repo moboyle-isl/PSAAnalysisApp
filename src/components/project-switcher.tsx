@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -22,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, Trash } from 'lucide-react';
+import { Save, Trash, PlusCircle, ChevronsRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
@@ -33,11 +34,15 @@ export function ProjectSwitcher() {
     loadProject,
     saveProject,
     deleteProject,
+    updateCurrentProject,
   } = useProjects();
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [projectName, setProjectName] = useState('');
+  const [newProjectName, setNewProjectName] = useState('');
   const { toast } = useToast();
+  
+  const activeProject = projects.find(p => p.id === activeProjectId);
 
   const handleLoadProject = (projectId: string) => {
     loadProject(projectId);
@@ -47,8 +52,19 @@ export function ProjectSwitcher() {
     });
   };
 
-  const handleSaveProject = () => {
-    if (!projectName.trim()) {
+  const handleUpdateCurrentProject = () => {
+    if (activeProjectId) {
+      updateCurrentProject();
+      toast({
+        title: 'Project Saved',
+        description: `Your changes to "${activeProject?.name}" have been saved.`,
+      });
+      setIsSaveDialogOpen(false);
+    }
+  }
+
+  const handleSaveAsNewProject = () => {
+    if (!newProjectName.trim()) {
       toast({
         variant: 'destructive',
         title: 'Invalid Name',
@@ -56,12 +72,13 @@ export function ProjectSwitcher() {
       });
       return;
     }
-    saveProject(projectName);
+    saveProject(newProjectName);
     toast({
       title: 'Project Saved',
-      description: `Your work has been saved as "${projectName}".`,
+      description: `Your work has been saved as "${newProjectName}".`,
     });
-    setProjectName('');
+    setNewProjectName('');
+    setIsSaveAsDialogOpen(false);
     setIsSaveDialogOpen(false);
   };
   
@@ -74,6 +91,7 @@ export function ProjectSwitcher() {
       });
     }
     setIsDeleteDialogOpen(false);
+    setIsSaveDialogOpen(false);
   };
 
   return (
@@ -102,18 +120,45 @@ export function ProjectSwitcher() {
           <DialogHeader>
             <DialogTitle>Save Project</DialogTitle>
             <DialogDescription>
-              Save your current progress as a new project or update an existing
-              one.
+              Save your current progress or create a new project.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-2">
-            <Label htmlFor="project-name">Project Name</Label>
-            <Input
-              id="project-name"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="e.g., Q3 Inspection Plan"
-            />
+          <div className="py-4 space-y-4">
+             <Button 
+                onClick={handleUpdateCurrentProject} 
+                disabled={activeProjectId === 'default'} 
+                className="w-full justify-between"
+             >
+                Save Current Project ({activeProject?.name})
+                <Save className="h-4 w-4" />
+             </Button>
+
+            <Dialog open={isSaveAsDialogOpen} onOpenChange={setIsSaveAsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                    Save as New Project
+                    <PlusCircle className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Save as New Project</DialogTitle>
+                </DialogHeader>
+                <div className="py-4 space-y-2">
+                    <Label htmlFor="project-name">New Project Name</Label>
+                    <Input
+                        id="project-name"
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        placeholder="e.g., Q3 Inspection Plan"
+                    />
+                </div>
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setIsSaveAsDialogOpen(false)}>Cancel</Button>
+                    <Button onClick={handleSaveAsNewProject}>Save</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
           <DialogFooter className='justify-between'>
             {activeProjectId !== 'default' && (
@@ -129,7 +174,7 @@ export function ProjectSwitcher() {
                       <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete the project
-                        <span className="font-bold"> {projects.find(p => p.id === activeProjectId)?.name}</span>.
+                        <span className="font-bold"> {activeProject?.name}</span>.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -141,13 +186,12 @@ export function ProjectSwitcher() {
                   </AlertDialogContent>
                 </AlertDialog>
             )}
-             <div className="flex gap-2">
+             <div className="flex gap-2 ml-auto">
                 <DialogClose asChild>
                     <Button type="button" variant="outline">
-                        Cancel
+                        Close
                     </Button>
                 </DialogClose>
-                <Button onClick={handleSaveProject}>Save</Button>
              </div>
           </DialogFooter>
         </DialogContent>

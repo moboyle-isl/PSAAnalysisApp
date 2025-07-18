@@ -52,28 +52,30 @@ export function useProjects() {
 
     const newSnapshot: ProjectSnapshot = { assets, repairPrices, aiRules };
     
-    // Check if a project with this name already exists
-    const existingProject = projects.find(p => p.name === name);
-
-    let newProjectId: string;
-
-    if (existingProject) {
-        // Update existing project
-        newProjectId = existingProject.id;
-        const updatedProjects = projects.map(p => 
-            p.id === newProjectId ? { ...p, snapshot: newSnapshot } : p
-        );
-        setProjects(updatedProjects);
-    } else {
-        // Create new project
-        newProjectId = `PROJ-${Date.now()}`;
-        const newProject: Project = { id: newProjectId, name, snapshot: newSnapshot };
-        setProjects([...projects, newProject]);
-    }
+    const newProjectId = `PROJ-${Date.now()}`;
+    const newProject: Project = { id: newProjectId, name, snapshot: newSnapshot };
+    setProjects([...projects, newProject]);
     
     setActiveProjectId(newProjectId);
 
   }, [projects, setProjects, setActiveProjectId]);
+
+  const updateCurrentProject = useCallback(() => {
+    if (typeof window === 'undefined' || !activeProjectId || activeProjectId === DEFAULT_PROJECT_ID) return;
+
+    const assets = JSON.parse(window.localStorage.getItem('assets') || '[]');
+    const repairPrices = JSON.parse(window.localStorage.getItem('repairPrices') || '[]');
+    const aiRules = JSON.parse(window.localStorage.getItem('aiRules') || '[]');
+
+    const updatedSnapshot: ProjectSnapshot = { assets, repairPrices, aiRules };
+
+    setProjects(prevProjects => 
+      prevProjects.map(p => 
+        p.id === activeProjectId ? { ...p, snapshot: updatedSnapshot } : p
+      )
+    );
+  }, [activeProjectId, setProjects]);
+
 
   const loadProject = useCallback((projectId: string) => {
     if (typeof window === 'undefined') return;
@@ -123,6 +125,7 @@ export function useProjects() {
     activeProjectId,
     loadProject,
     saveProject,
+    updateCurrentProject,
     deleteProject,
   };
 }
