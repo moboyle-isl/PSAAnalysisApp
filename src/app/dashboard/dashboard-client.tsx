@@ -174,11 +174,11 @@ const newAssetSchema = z.object({
   aboveGroundCollarHeight: z.coerce.number().min(0),
   septicSystemType: z.enum(['Cistern', 'Septic Tank']),
   assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
-  siteCondition: z.coerce.number().min(1).max(5),
-  coverCondition: z.coerce.number().min(1).max(5),
-  collarCondition: z.coerce.number().min(1).max(5),
-  interiorCondition: z.coerce.number().min(1).max(5),
-  overallCondition: z.coerce.number().min(1).max(5),
+  siteCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
+  coverCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
+  collarCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
+  interiorCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
+  overallCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   fieldNotes: z.string().optional(),
 }).refine(data => {
     if (data.septicSystemType === 'Cistern' && data.assetSubType !== 'Cistern') {
@@ -234,6 +234,9 @@ export function DashboardClient() {
   const [isNewAssetDialogOpen, setIsNewAssetDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AssetWithRecommendation | null>(null);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
+  const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -484,6 +487,36 @@ export function DashboardClient() {
     setIsDeleteAllDialogOpen(false);
   }
 
+  const handleUpdateCurrentProject = () => {
+    if (activeProject && activeProject.id !== 'default') {
+      updateCurrentProject();
+      toast({
+        title: 'Project Saved',
+        description: `Your changes to "${activeProject?.name}" have been saved.`,
+      });
+      setIsSaveDialogOpen(false);
+    }
+  }
+
+  const handleSaveAsNewProject = () => {
+    if (!newProjectName.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Invalid Name',
+        description: 'Project name cannot be empty.',
+      });
+      return;
+    }
+    saveProject(newProjectName);
+    toast({
+      title: 'Project Saved',
+      description: `Your work has been saved as "${newProjectName}".`,
+    });
+    setNewProjectName('');
+    setIsSaveAsDialogOpen(false);
+    setIsSaveDialogOpen(false);
+  };
+
 
   const handleValueChange = (
     assetId: string,
@@ -624,11 +657,14 @@ export function DashboardClient() {
        if (asset.septicSystemType === 'Cistern' && key === 'assetSubType') {
         // Not editable if it's a Cistern
       } else {
+        const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
         return (
           <Input
             autoFocus
             type={typeof value === 'number' ? 'number' : 'text'}
             defaultValue={value as string | number}
+            max={isConditionField ? 5 : undefined}
+            min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
               const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof Asset, val);
@@ -732,7 +768,17 @@ export function DashboardClient() {
             title="Asset Dashboard"
             description="View, edit, and analyze asset data with AI-powered recommendations."
         >
-            <ProjectSwitcher {...projectsHook} />
+            <ProjectSwitcher 
+              projectsHook={projectsHook}
+              handleUpdateCurrentProject={handleUpdateCurrentProject}
+              handleSaveAsNewProject={handleSaveAsNewProject}
+              isSaveDialogOpen={isSaveDialogOpen}
+              setIsSaveDialogOpen={setIsSaveDialogOpen}
+              isSaveAsDialogOpen={isSaveAsDialogOpen}
+              setIsSaveAsDialogOpen={setIsSaveAsDialogOpen}
+              newProjectName={newProjectName}
+              setNewProjectName={setNewProjectName}
+            />
             <Button variant="outline">
             <Upload className="mr-2 h-4 w-4" />
             Upload Data

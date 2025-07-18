@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { type Dispatch, type SetStateAction, useState } from 'react';
 import type { Project } from '@/hooks/use-projects';
-import { useProjects } from '@/hooks/use-projects';
+import type { useProjects } from '@/hooks/use-projects';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -39,25 +39,40 @@ import { Label } from '@/components/ui/label';
 import { Save, PlusCircle, Trash } from 'lucide-react';
 
 
-type ProjectSwitcherProps = ReturnType<typeof useProjects>;
+type ProjectSwitcherProps = {
+    projectsHook: ReturnType<typeof useProjects>;
+    handleUpdateCurrentProject: () => void;
+    handleSaveAsNewProject: () => void;
+    isSaveDialogOpen: boolean;
+    setIsSaveDialogOpen: Dispatch<SetStateAction<boolean>>;
+    isSaveAsDialogOpen: boolean;
+    setIsSaveAsDialogOpen: Dispatch<SetStateAction<boolean>>;
+    newProjectName: string;
+    setNewProjectName: Dispatch<SetStateAction<string>>;
+};
 
-export function ProjectSwitcher(props: ProjectSwitcherProps) {
+export function ProjectSwitcher({
+    projectsHook,
+    handleUpdateCurrentProject,
+    handleSaveAsNewProject,
+    isSaveDialogOpen,
+    setIsSaveDialogOpen,
+    isSaveAsDialogOpen,
+    setIsSaveAsDialogOpen,
+    newProjectName,
+    setNewProjectName,
+}: ProjectSwitcherProps) {
   const {
     projects,
     activeProjectId,
     activeProject,
     loadProject,
-    updateCurrentProject,
-    saveProject,
     deleteProject,
     isReady,
-  } = props;
+  } = projectsHook;
   const { toast } = useToast();
   
-  const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
-  const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
   
   const handleLoadProject = (projectId: string) => {
     loadProject(projectId);
@@ -65,36 +80,6 @@ export function ProjectSwitcher(props: ProjectSwitcherProps) {
       title: 'Project Loaded',
       description: `Switched to project: ${projects.find(p => p.id === projectId)?.name}`,
     });
-  };
-
-  const handleUpdateCurrentProject = () => {
-    if (activeProject && activeProject.id !== 'default') {
-      updateCurrentProject();
-      toast({
-        title: 'Project Saved',
-        description: `Your changes to "${activeProject?.name}" have been saved.`,
-      });
-      setIsSaveDialogOpen(false);
-    }
-  }
-
-  const handleSaveAsNewProject = () => {
-    if (!newProjectName.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Name',
-        description: 'Project name cannot be empty.',
-      });
-      return;
-    }
-    saveProject(newProjectName);
-    toast({
-      title: 'Project Saved',
-      description: `Your work has been saved as "${newProjectName}".`,
-    });
-    setNewProjectName('');
-    setIsSaveAsDialogOpen(false);
-    setIsSaveDialogOpen(false);
   };
   
   const handleDeleteProject = () => {
