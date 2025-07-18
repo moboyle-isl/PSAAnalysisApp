@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, RotateCcw, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -472,16 +472,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
     );
   };
   
-  const handleResetData = () => {
-    setAssets(initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
-    setFilters([]);
-    setSortConfig(null);
-    toast({
-        title: "Data Reset",
-        description: "All asset data has been reset to its initial state.",
-      });
-  };
-
   const renderCellContent = (asset: AssetWithRecommendation, key: Column['key']) => {
     const cellId = `${asset.assetId}-${key}`;
     const isEditing = editingCell === cellId;
@@ -1060,12 +1050,6 @@ export function DashboardClient({ data }: { data: Asset[] }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-        <div className="flex items-center gap-4">
-           <Button variant="ghost" onClick={handleResetData} disabled={!isClient}>
-             <RotateCcw className="mr-2 h-4 w-4" />
-             Reset Data
-           </Button>
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
