@@ -70,8 +70,8 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { Rule } from '@/app/rules/rules-client';
-import { ASSET_COLUMNS } from '@/app/rules/rules-client';
+import type { Rule, Condition } from '@/app/rules/rules-client';
+import { ASSET_COLUMNS, OPERATORS } from '@/app/rules/rules-client';
 import { PageHeader } from '@/components/page-header';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { useProjects } from '@/hooks/use-projects';
@@ -114,28 +114,6 @@ const ALL_COLUMNS: Column[] = [
     { key: 'estimatedRemainingLife', label: 'Est. Remaining Life', type: 'string', width: '150px' },
     { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
-
-const OPERATORS = {
-  string: [
-    { value: 'contains', label: 'Contains' },
-    { value: 'equals', label: 'Equals' },
-    { value: 'not_contains', label: 'Does not contain' },
-    { value: 'not_equals', label: 'Does not equal' },
-  ],
-  number: [
-    { value: 'eq', label: '=' },
-    { value: 'neq', label: '!=' },
-    { value: 'gt', label: '>' },
-    { value: 'gte', label: '>=' },
-    { value: 'lt', label: '<' },
-    { value: 'lte', label: '<=' },
-  ],
-  enum: [
-    { value: 'eq', label: 'Is' },
-    { value: 'neq', label: 'Is not' },
-  ],
-  action: [],
-};
 
 const OPERATOR_TEXT_MAP: Record<string, string> = {
   contains: 'contains',
@@ -379,19 +357,30 @@ export function DashboardClient() {
     try {
       const createRuleString = (rule: Rule) => {
         if (!rule.conditions || rule.conditions.length === 0) return '';
-        const conditionsString = rule.conditions.map(condition => {
-          const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
-          if (columnLabel === 'Field Notes') {
-            return `${columnLabel} contains "${condition.conditionText}"`;
-          }
-          if (condition.operator) {
-            const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
-            return `${columnLabel} ${operatorText} ${condition.value}`;
-          }
-          return '';
-        }).filter(Boolean).join(` ${rule.logicalOperator} `);
+        const conditionsString = rule.conditions.map((condition: Condition) => {
+            const columnDef = ASSET_COLUMNS.find(c => c.key === condition.column);
+            if (!columnDef) return null; // Skip if column not found
+            
+            const columnLabel = columnDef.label;
 
-        const outcome = rule.ruleType === 'REPAIR' ? `then recommend: "${rule.recommendationText}"` : `then remaining life is: "${rule.lifeExpectancy}"`;
+            if (columnDef.type === 'string') {
+                return `${columnLabel} contains "${condition.conditionText}"`;
+            }
+
+            if (condition.operator) {
+                const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
+                return `${columnLabel} ${operatorText} ${condition.value}`;
+            }
+
+            return null; // Should not happen with validation
+        }).filter(Boolean).join(` ${rule.logicalOperator} `);
+        
+        if (!conditionsString) return '';
+
+        const outcome = rule.ruleType === 'REPAIR' 
+            ? `then recommend: "${rule.recommendationText}"` 
+            : `then remaining life is: "${rule.lifeExpectancy}"`;
+
         return `If (${conditionsString}), ${outcome}`;
       };
 
