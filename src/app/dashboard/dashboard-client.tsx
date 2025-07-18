@@ -23,7 +23,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload } from 'lucide-react';
 import { recommendRepairsForAllAssets } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -72,6 +72,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { Rule } from '@/app/rules/rules-client';
 import { ASSET_COLUMNS } from '@/app/rules/rules-client';
+import { PageHeader } from '@/components/page-header';
+import { ProjectSwitcher } from '@/components/project-switcher';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -189,7 +191,7 @@ const newAssetSchema = z.object({
 
 
 export function DashboardClient() {
-  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false })));
+  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined })));
   const [repairPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
   const [rules] = useLocalStorage<Rule[]>('aiRules', []);
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
@@ -198,6 +200,7 @@ export function DashboardClient() {
   const [isClient, setIsClient] = useState(false);
   const [isNewAssetDialogOpen, setIsNewAssetDialogOpen] = useState(false);
   const [assetToDelete, setAssetToDelete] = useState<AssetWithRecommendation | null>(null);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -242,11 +245,11 @@ export function DashboardClient() {
     material: true,
     septicSystemType: true,
     assetSubType: true,
-    setbackFromWaterSource: true,
-    setbackFromHouse: true,
-    tankBuryDepth: true,
-    openingSize: true,
-    aboveGroundCollarHeight: true,
+    setbackFromWaterSource: false,
+    setbackFromHouse: false,
+    tankBuryDepth: false,
+    openingSize: false,
+    aboveGroundCollarHeight: false,
     siteCondition: true,
     coverCondition: true,
     collarCondition: true,
@@ -287,9 +290,11 @@ export function DashboardClient() {
   };
   
   const { processedAssets, visibleColumns } = useMemo(() => {
+    // On the server, return default state to avoid hydration errors
+    const defaultVisibleColumns = ALL_COLUMNS.filter(c => c.key !== 'estimatedRemainingLife' || columnVisibility[c.key]);
+
     if (!isClient) {
-      // On the server, return default state to avoid hydration errors
-      return { processedAssets: [], visibleColumns: ALL_COLUMNS };
+      return { processedAssets: [], visibleColumns: defaultVisibleColumns };
     }
     
     // Client-side only logic
@@ -371,8 +376,9 @@ export function DashboardClient() {
         if (!rule.conditions || rule.conditions.length === 0) return '';
         const conditionsString = rule.conditions.map(condition => {
             const columnLabel = ASSET_COLUMNS.find(c => c.key === condition.column)?.label || condition.column;
-            if (condition.ruleType === 'text') {
-              return `${columnLabel} contains "${condition.conditionText}"`;
+            
+            if (columnLabel === 'Field Notes') {
+                return `${columnLabel} contains "${condition.conditionText}"`;
             }
             if (condition.operator) {
               const operatorText = OPERATOR_TEXT_MAP[condition.operator] || condition.operator;
@@ -446,6 +452,7 @@ export function DashboardClient() {
       recommendation: undefined,
       estimatedCost: undefined,
       needsPrice: false,
+      estimatedRemainingLife: undefined,
     };
     setAssets(prev => [newAsset, ...prev]);
     toast({
@@ -464,6 +471,15 @@ export function DashboardClient() {
     });
     setAssetToDelete(null);
   };
+
+  const handleDeleteAllAssets = () => {
+    setAssets([]);
+    toast({
+        title: "All Assets Deleted",
+        description: `The asset list has been cleared.`,
+    });
+    setIsDeleteAllDialogOpen(false);
+  }
 
 
   const handleValueChange = (
@@ -709,6 +725,45 @@ export function DashboardClient() {
 
   return (
     <div className="flex flex-col h-full space-y-4">
+        <PageHeader
+            title="Asset Dashboard"
+            description="View, edit, and analyze asset data with AI-powered recommendations."
+        >
+            <ProjectSwitcher />
+            <Button variant="outline">
+            <Upload className="mr-2 h-4 w-4" />
+            Upload Data
+            </Button>
+            <Button>
+            <Download className="mr-2 h-4 w-4" />
+            Export Data
+            </Button>
+            <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                        <Trash className="mr-2 h-4 w-4" />
+                        Delete All Assets
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete all
+                        asset data.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteAllAssets}>
+                        Yes, delete all
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </PageHeader>
+        <div className="flex-1 p-6 pt-0 bg-card rounded-b-lg overflow-hidden flex flex-col space-y-4">
+
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1137,10 +1192,7 @@ export function DashboardClient() {
           </TableBody>
         </Table>
       </ScrollArea>
+      </div>
     </div>
   );
 }
-
-  
-
-    
