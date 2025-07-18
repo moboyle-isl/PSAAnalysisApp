@@ -120,9 +120,9 @@ You MUST follow this logic precisely for each asset:
     - When a rule matches:
         - Set 'recommendation' to the text provided in the rule.
         - Set 'recommendedRepairType' to the SAME text.
-        - Search the 'Available Repairs and Prices' list for a 'repairType' that exactly matches the recommendation text (case-insensitive).
-        - If you find an exact match, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
-        - If you DO NOT find an exact match, set 'estimatedCost' to 0 and 'needsPrice' to true.
+        - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
+        - If a confident match is found, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
+        - If you DO NOT find a confident match, set 'estimatedCost' to 0 and 'needsPrice' to true.
     - Once a rule matches, STOP further analysis for that asset and move to the next one.
 
 2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no rule applies).**
