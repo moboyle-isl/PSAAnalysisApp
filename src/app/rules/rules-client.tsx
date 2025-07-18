@@ -172,11 +172,37 @@ export function RulesClient() {
   };
 
   useEffect(() => {
-    if (isDialogOpen && fields.length === 0) {
+    if (isDialogOpen && fields.length === 0 && !editingRule) {
         handleAddNewCondition();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDialogOpen, fields.length]);
+  }, [isDialogOpen, fields.length, editingRule]);
+
+  // Effect to reset form when editingRule changes
+  useEffect(() => {
+    if (editingRule) {
+      // Use 'replace' to ensure field array is correctly populated
+      replace(editingRule.conditions);
+      // Reset the rest of the form with the rule's data
+      form.reset({
+        ruleType: editingRule.ruleType,
+        logicalOperator: editingRule.logicalOperator,
+        recommendationText: editingRule.recommendationText,
+        lifeExpectancy: editingRule.lifeExpectancy,
+        conditions: editingRule.conditions,
+      });
+    } else {
+      // Reset to default values for a new rule
+      replace([]);
+      form.reset({
+        ruleType: 'REPAIR',
+        conditions: [],
+        logicalOperator: 'AND',
+        recommendationText: '',
+        lifeExpectancy: undefined,
+      });
+    }
+  }, [editingRule, form, replace]);
 
 
   function onSubmit(data: z.infer<typeof ruleSchema>) {
@@ -188,7 +214,6 @@ export function RulesClient() {
       setRules([...rules, newRule]);
     }
     
-    form.reset();
     setEditingRule(null);
     setIsDialogOpen(false);
   }
@@ -199,22 +224,6 @@ export function RulesClient() {
 
   const handleOpenDialog = (rule: Rule | null = null) => {
     setEditingRule(rule);
-    if (rule) {
-        // use 'replace' from useFieldArray to properly set the fields
-        replace(rule.conditions);
-        form.reset({
-            ...rule,
-        });
-    } else {
-        replace([]); // Clear existing fields
-        form.reset({
-            ruleType: 'REPAIR',
-            conditions: [],
-            logicalOperator: 'AND',
-            recommendationText: '',
-            lifeExpectancy: undefined,
-        });
-    }
     setIsDialogOpen(true);
 }
   
@@ -262,7 +271,6 @@ export function RulesClient() {
       <Dialog open={isDialogOpen} onOpenChange={(isOpen) => {
           if (!isOpen) {
               setEditingRule(null);
-              form.reset();
           }
           setIsDialogOpen(isOpen);
       }}>
@@ -527,7 +535,6 @@ export function RulesClient() {
             </form>
           </Form>
         </DialogContent>
-
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
