@@ -2,7 +2,6 @@
 'use client';
 
 import type { RepairPrice } from '@/lib/data';
-import { initialRepairPrices } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -23,28 +22,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash, Pencil } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/use-local-storage';
+import { useState } from 'react';
+import { useProjects } from '@/hooks/use-projects';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 
 export function PricingClient() {
-  const [prices, setPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
+  const { repairPrices: prices, setRepairPrices: setPrices, isReady } = useProjects();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPrice, setEditingPrice] = useState<RepairPrice | null>(null);
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-    const handleProjectLoad = () => {
-        window.location.reload();
-    };
-    window.addEventListener('project-loaded', handleProjectLoad);
-    return () => {
-        window.removeEventListener('project-loaded', handleProjectLoad);
-    };
-  }, []);
-
 
   const handleAddOrUpdatePrice = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,7 +66,7 @@ export function PricingClient() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        {isClient ? (
+        {isReady ? (
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenDialog(null)}>
@@ -126,7 +112,7 @@ export function PricingClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!isClient ? (
+            {!isReady ? (
                Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index}>
                   <TableCell colSpan={3}>

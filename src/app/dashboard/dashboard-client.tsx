@@ -3,7 +3,6 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import type { Asset, RepairPrice } from '@/lib/data';
-import { initialAssets, initialRepairPrices } from '@/lib/data';
 import {
   Table,
   TableHeader,
@@ -74,6 +73,7 @@ import type { Rule } from '@/app/rules/rules-client';
 import { ASSET_COLUMNS } from '@/app/rules/rules-client';
 import { PageHeader } from '@/components/page-header';
 import { ProjectSwitcher } from '@/components/project-switcher';
+import { useProjects } from '@/hooks/use-projects';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string;
@@ -191,9 +191,7 @@ const newAssetSchema = z.object({
 
 
 export function DashboardClient() {
-  const [assets, setAssets] = useLocalStorage<AssetWithRecommendation[]>('assets', initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined })));
-  const [repairPrices] = useLocalStorage<RepairPrice[]>('repairPrices', initialRepairPrices);
-  const [rules] = useLocalStorage<Rule[]>('aiRules', []);
+  const { assets, setAssets, repairPrices, rules, isReady } = useProjects();
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
@@ -290,14 +288,12 @@ export function DashboardClient() {
   };
   
   const { processedAssets, visibleColumns } = useMemo(() => {
-    // On the server, return default state to avoid hydration errors
-    const defaultVisibleColumns = ALL_COLUMNS.filter(c => c.key !== 'estimatedRemainingLife' || columnVisibility[c.key]);
+    const defaultVisibleColumns = ALL_COLUMNS.filter(c => columnVisibility[c.key]);
 
     if (!isClient) {
       return { processedAssets: [], visibleColumns: defaultVisibleColumns };
     }
     
-    // Client-side only logic
     const currentVisibleColumns = ALL_COLUMNS.filter(
       (column) => columnVisibility[column.key]
     );
@@ -750,7 +746,7 @@ export function DashboardClient() {
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete all
-                        asset data.
+                        asset data for the current project.
                     </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -768,14 +764,14 @@ export function DashboardClient() {
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Filtered Assets</CardTitle>
-                 {isClient ? (
+                 {isReady ? (
                     <span className="text-muted-foreground">{processedAssets.length} / {assets.length}</span>
                 ) : (
                     <Skeleton className="h-4 w-12" />
                 )}
             </CardHeader>
             <CardContent>
-                 {isClient ? (
+                 {isReady ? (
                     <div className="text-2xl font-bold">
                         {processedAssets.length}
                     </div>
@@ -793,7 +789,7 @@ export function DashboardClient() {
                 <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-                {isClient ? (
+                {isReady ? (
                     <div className="text-2xl font-bold">
                         ${totalRepairCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
@@ -808,7 +804,7 @@ export function DashboardClient() {
       </div>
        <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <Button onClick={handleRunRecommendations} disabled={isGenerating || !isClient}>
+          <Button onClick={handleRunRecommendations} disabled={isGenerating || !isReady}>
             {isGenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -818,7 +814,7 @@ export function DashboardClient() {
           </Button>
            <Dialog open={isNewAssetDialogOpen} onOpenChange={setIsNewAssetDialogOpen}>
               <DialogTrigger asChild>
-                <Button disabled={!isClient}>
+                <Button disabled={!isReady}>
                   <Plus className="mr-2 h-4 w-4" />
                   New Asset
                 </Button>
@@ -996,7 +992,7 @@ export function DashboardClient() {
            </Dialog>
           <Popover open={filterPopoverOpen} onOpenChange={setFilterPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" disabled={!isClient}>
+              <Button variant="outline" disabled={!isReady}>
                 <FilterIcon className="mr-2 h-4 w-4" />
                 Filter
               </Button>
@@ -1047,7 +1043,7 @@ export function DashboardClient() {
           </Popover>
           <Popover open={sortPopoverOpen} onOpenChange={setSortPopoverOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" disabled={!isClient}>
+              <Button variant="outline" disabled={!isReady}>
                 <ArrowUpDown className="mr-2 h-4 w-4" />
                 Sort
               </Button>
@@ -1097,7 +1093,7 @@ export function DashboardClient() {
           </Popover>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" disabled={!isClient}>
+              <Button variant="outline" disabled={!isReady}>
                 <View className="mr-2 h-4 w-4" />
                 View
               </Button>
@@ -1163,7 +1159,7 @@ export function DashboardClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isClient ? processedAssets.map((asset) => (
+            {isReady ? processedAssets.map((asset) => (
               <TableRow key={asset.assetId}>
                 {visibleColumns.map((header) => (
                   <TableCell

@@ -3,13 +3,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLocalStorage } from './use-local-storage';
+import type { Asset, RepairPrice } from '@/lib/data';
 import { initialAssets, initialRepairPrices } from '@/lib/data';
+import type { Rule } from '@/app/rules/rules-client';
+
+type AssetWithRecommendation = Asset & { 
+  recommendation?: string;
+  estimatedCost?: number;
+  needsPrice?: boolean;
+  estimatedRemainingLife?: string;
+};
 
 // Define the structure of a project snapshot
 type ProjectSnapshot = {
-  assets: any[]; // Replace 'any' with your Asset type
-  repairPrices: any[]; // Replace 'any' with your RepairPrice type
-  aiRules: any[]; // Replace 'any' with your Rule type
+  assets: AssetWithRecommendation[];
+  repairPrices: RepairPrice[];
+  aiRules: Rule[];
 };
 
 // Define the structure of a project
@@ -21,13 +30,13 @@ type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const a = initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
+const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,
     name: 'Default Project',
     snapshot: {
-        assets: a,
+        assets: defaultAssets,
         repairPrices: initialRepairPrices,
         aiRules: []
     }
@@ -37,92 +46,108 @@ const DEFAULT_PROJECT: Project = {
 export function useProjects() {
   const [projects, setProjects] = useLocalStorage<Project[]>('projects', [DEFAULT_PROJECT]);
   const [activeProjectId, setActiveProjectId] = useLocalStorage<string>('activeProjectId', DEFAULT_PROJECT_ID);
+  
+  const [activeProjectState, setActiveProjectState] = useState<ProjectSnapshot | null>(null);
+  
+  const [isReady, setIsReady] = useState(false);
 
-  const [isClient, setIsClient] = useState(false);
+  // Effect to initialize the active project state from localStorage
   useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  const saveProject = useCallback((name: string) => {
-    if (typeof window === 'undefined') return;
-
-    const assets = JSON.parse(window.localStorage.getItem('assets') || '[]');
-    const repairPrices = JSON.parse(window.localStorage.getItem('repairPrices') || '[]');
-    const aiRules = JSON.parse(window.localStorage.getItem('aiRules') || '[]');
-
-    const newSnapshot: ProjectSnapshot = { assets, repairPrices, aiRules };
-    
-    const newProjectId = `PROJ-${Date.now()}`;
-    const newProject: Project = { id: newProjectId, name, snapshot: newSnapshot };
-    setProjects([...projects, newProject]);
-    
-    setActiveProjectId(newProjectId);
-
-  }, [projects, setProjects, setActiveProjectId]);
-
-  const updateCurrentProject = useCallback(() => {
-    if (typeof window === 'undefined' || !activeProjectId || activeProjectId === DEFAULT_PROJECT_ID) return;
-
-    const assets = JSON.parse(window.localStorage.getItem('assets') || '[]');
-    const repairPrices = JSON.parse(window.localStorage.getItem('repairPrices') || '[]');
-    const aiRules = JSON.parse(window.localStorage.getItem('aiRules') || '[]');
-
-    const updatedSnapshot: ProjectSnapshot = { assets, repairPrices, aiRules };
-
-    setProjects(prevProjects => 
-      prevProjects.map(p => 
-        p.id === activeProjectId ? { ...p, snapshot: updatedSnapshot } : p
-      )
-    );
-  }, [activeProjectId, setProjects]);
-
+    const activeProject = projects.find(p => p.id === activeProjectId);
+    if (activeProject) {
+      setActiveProjectState(activeProject.snapshot);
+    } else {
+      // If active project not found (e.g., deleted), load default
+      setActiveProjectState(DEFAULT_PROJECT.snapshot);
+      setActiveProjectId(DEFAULT_PROJECT_ID);
+    }
+    setIsReady(true);
+  }, [activeProjectId, projects, setActiveProjectId]);
 
   const loadProject = useCallback((projectId: string) => {
-    if (typeof window === 'undefined') return;
-
     const projectToLoad = projects.find((p) => p.id === projectId);
-    if (!projectToLoad) {
-      console.error(`Project with id ${projectId} not found.`);
-      return;
+    if (projectToLoad) {
+      setActiveProjectId(projectId);
+      setActiveProjectState(projectToLoad.snapshot);
     }
-
-    const { snapshot } = projectToLoad;
-    
-    // Update localStorage for each data type
-    window.localStorage.setItem('assets', JSON.stringify(snapshot.assets));
-    window.localStorage.setItem('repairPrices', JSON.stringify(snapshot.repairPrices));
-    window.localStorage.setItem('aiRules', JSON.stringify(snapshot.aiRules));
-
-    setActiveProjectId(projectId);
-
-    // Dispatch a custom event to notify components of the change
-    // This forces a reload to ensure all components get the new state
-    window.dispatchEvent(new CustomEvent('project-loaded'));
-
   }, [projects, setActiveProjectId]);
 
 
+  const updateCurrentProject = useCallback(() => {
+    if (!activeProjectState || !activeProjectId || activeProjectId === DEFAULT_PROJECT_ID) return;
+
+    setProjects(prevProjects => 
+      prevProjects.map(p => 
+        p.id === activeProjectId ? { ...p, snapshot: activeProjectState } : p
+      )
+    );
+  }, [activeProjectId, activeProjectState, setProjects]);
+
+
+  const saveProject = useCallback((name: string) => {
+    if (!activeProjectState) return;
+
+    const newProjectId = `PROJ-${Date.now()}`;
+    const newProject: Project = { id: newProjectId, name, snapshot: activeProjectState };
+    
+    setProjects(prev => [...prev, newProject]);
+    setActiveProjectId(newProjectId);
+  }, [activeProjectState, setProjects, setActiveProjectId]);
+
+  
   const deleteProject = useCallback((projectId: string) => {
     if (projectId === DEFAULT_PROJECT_ID) {
       console.error("Cannot delete the default project.");
       return;
     }
-    const updatedProjects = projects.filter(p => p.id !== projectId);
-    setProjects(updatedProjects);
-    // Load the default project after deletion
+    setProjects(prev => prev.filter(p => p.id !== projectId));
     loadProject(DEFAULT_PROJECT_ID);
-  }, [projects, setProjects, loadProject]);
+  }, [setProjects, loadProject]);
+  
   
   // Ensure default project exists on first load
   useEffect(() => {
-    if (isClient && !projects.find(p => p.id === DEFAULT_PROJECT_ID)) {
-        setProjects([DEFAULT_PROJECT, ...projects]);
+    if (isReady && !projects.find(p => p.id === DEFAULT_PROJECT_ID)) {
+        setProjects(prev => [DEFAULT_PROJECT, ...prev]);
     }
-  }, [isClient, projects, setProjects]);
+  }, [isReady, projects, setProjects]);
+
+
+  // Create stable setters for individual data types
+  const setAssets = useCallback((value: React.SetStateAction<AssetWithRecommendation[]>) => {
+    setActiveProjectState(prev => {
+      if (!prev) return null;
+      const newAssets = value instanceof Function ? value(prev.assets) : value;
+      return { ...prev, assets: newAssets };
+    });
+  }, []);
+
+  const setRepairPrices = useCallback((value: React.SetStateAction<RepairPrice[]>) => {
+    setActiveProjectState(prev => {
+      if (!prev) return null;
+      const newRepairPrices = value instanceof Function ? value(prev.repairPrices) : value;
+      return { ...prev, repairPrices: newRepairPrices };
+    });
+  }, []);
+
+  const setRules = useCallback((value: React.SetStateAction<Rule[]>) => {
+    setActiveProjectState(prev => {
+      if (!prev) return null;
+      const newRules = value instanceof Function ? value(prev.aiRules) : value;
+      return { ...prev, aiRules: newRules };
+    });
+  }, []);
 
   return {
+    isReady,
     projects,
     activeProjectId,
+    assets: activeProjectState?.assets ?? [],
+    setAssets,
+    repairPrices: activeProjectState?.repairPrices ?? [],
+    setRepairPrices,
+    rules: activeProjectState?.aiRules ?? [],
+    setRules,
     loadProject,
     saveProject,
     updateCurrentProject,

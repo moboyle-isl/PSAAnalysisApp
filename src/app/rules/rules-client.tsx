@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/use-local-storage';
+import { useProjects } from '@/hooks/use-projects';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -115,22 +115,10 @@ const ruleSchema = z.object({
 })
 
 export function RulesClient() {
-  const [rules, setRules] = useLocalStorage<Rule[]>('aiRules', []);
-  const [isClient, setIsClient] = useState(false);
+  const { rules, setRules, isReady } = useProjects();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   
-  useEffect(() => {
-    setIsClient(true);
-    const handleProjectLoad = () => {
-        window.location.reload();
-    };
-    window.addEventListener('project-loaded', handleProjectLoad);
-    return () => {
-        window.removeEventListener('project-loaded', handleProjectLoad);
-    };
-  }, []);
-
   const form = useForm<z.infer<typeof ruleSchema>>({
     resolver: zodResolver(ruleSchema),
     defaultValues: {
@@ -456,15 +444,17 @@ export function RulesClient() {
                     These rules will be sent to the AI to influence its recommendations.
                 </CardDescription>
             </div>
-            {isClient && (
-                <Button onClick={() => handleOpenDialog()}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Rule
-                </Button>
+            {isReady && (
+                <DialogTrigger asChild>
+                  <Button onClick={() => handleOpenDialog()}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Rule
+                  </Button>
+                </DialogTrigger>
             )}
         </CardHeader>
         <CardContent>
-          {isClient ? (
+          {isReady ? (
             rules.length > 0 ? (
               <ul className="space-y-4">
                 {rules.map(rule => (
@@ -478,10 +468,12 @@ export function RulesClient() {
                         </div>
                     </div>
                     <div className="flex items-center">
-                        <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit Rule</span>
-                        </Button>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => handleOpenDialog(rule)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit Rule</span>
+                          </Button>
+                        </DialogTrigger>
                         <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive shrink-0" onClick={() => handleDeleteRule(rule.id)}>
                             <Trash className="h-4 w-4" />
                             <span className="sr-only">Delete Rule</span>
