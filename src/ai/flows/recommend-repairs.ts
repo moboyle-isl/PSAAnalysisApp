@@ -46,7 +46,7 @@ const AssetSchema = z.object({
   collarCondition: z.number(),
   interiorCondition: z.number(),
   overallCondition: z.number(),
-  fieldNotes: z.string(),
+  fieldNotes: z.string().optional(),
 });
 
 const RepairPriceSchema = z.object({
@@ -59,8 +59,7 @@ const RepairPriceSchema = z.object({
 const RecommendRepairsAllAssetsInputSchema = z.object({
     assets: z.array(AssetSchema),
     repairPrices: z.array(RepairPriceSchema).describe("A list of available repair types and their unit prices."),
-    repairRules: z.string().describe("A string containing user-defined rules for REPAIR recommendations, where each rule is on a new line."),
-    lifeRules: z.string().describe("A string containing user-defined rules for REMAINING LIFE estimations, where each rule is on a new line."),
+    rules: z.string().describe("A string containing user-defined rules, where each rule is on a new line. Rules can be for repairs or for life expectancy."),
 });
 
 export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllAssetsInputSchema>;
@@ -123,9 +122,9 @@ You must provide a response for every asset.
 ---
 **TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
 For each asset, provide an estimate of its remaining useful life.
-- First, check if the asset matches any of the "Remaining Life Rules" provided. If a rule matches, you MUST use the life expectancy from that rule.
+- First, check if the asset matches any of the user-defined rules that specify a "remaining life". If a rule matches, you MUST use the life expectancy from that rule.
 - If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
-- You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", "20-25 years".
+- You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "20-25 years".
 - The maximum value is "20-25 years".
 - If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule specifies otherwise.
 
@@ -134,8 +133,8 @@ For each asset, provide an estimate of its remaining useful life.
 For each asset, you will create a list of one or more repair recommendations. Follow this logic precisely:
 
 1.  **COMBINE RULE-BASED AND FIELD-NOTE-BASED ANALYSIS.**
-    - First, check if the asset's data matches any of the user-defined "Repair Rules". Collect all matching rule-based recommendations.
-    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems.
+    - First, check if the asset's data matches any of the user-defined rules that specify a "recommendation". Collect all matching rule-based recommendations.
+    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems that require repairs.
     - Combine the findings from both sources to create a final list of recommendations. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
 
 2.  **DETERMINE REPAIR DETAILS.**
@@ -151,22 +150,17 @@ For each asset, you will create a list of one or more repair recommendations. Fo
     - If any recommended repair type is NOT on the price list, set 'needsPrice' to true and exclude it from the cost calculation.
 
 4.  **HANDLE NO ACTION.**
-    - If no rules apply, 'Field Notes' are clear (e.g., "OK"), and condition scores are good (4 or 5), then no action is needed. In this case, the recommendation list should contain only "No action needed", the recommendedRepairType list should contain "None", and the cost should be 0.
+    - If no rules apply, 'Field Notes' are clear (e.g., "OK"), and condition scores are good (4 or 5), then no action is needed.
+    - In this case, the 'recommendation' array should contain only "No action needed".
+    - The 'recommendedRepairType' array should contain "None".
+    - The 'estimatedCost' should be 0.
 
 ---
-**Remaining Life Rules (Used for Task 1):**
-{{#if lifeRules}}
-{{{lifeRules}}}
+**User-Defined Rules (Used for Tasks 1 & 2):**
+{{#if rules}}
+{{{rules}}}
 {{else}}
-No user-defined life estimation rules provided.
-{{/if}}
-
----
-**Repair Rules (Used for Task 2):**
-{{#if repairRules}}
-{{{repairRules}}}
-{{else}}
-No user-defined repair rules provided.
+No user-defined rules provided.
 {{/if}}
 
 ---
