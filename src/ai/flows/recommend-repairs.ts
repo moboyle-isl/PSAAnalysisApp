@@ -67,12 +67,13 @@ export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllA
 
 const SingleAssetRecommendationSchema = z.object({
     assetId: z.string(),
-    recommendation: z.string().describe('The recommended repair or replacement action. Should be a short summary.'),
-    recommendedRepairType: z.string().describe("The specific repair type. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return 'None'."),
-    estimatedCost: z.number().describe("The estimated cost for the repair. If the repair type is not in the price list, return 0."),
-    needsPrice: z.boolean().describe("Set to true if the recommended repair type does not have a price in the provided list, otherwise set to false."),
+    recommendation: z.array(z.string()).describe('A list of recommended repair or replacement actions. Each item should be a short summary.'),
+    recommendedRepairType: z.array(z.string()).describe("A list of specific repair types. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return ['None']."),
+    estimatedCost: z.number().describe("The total estimated cost for all recommended repairs. If any recommended repair type is not in the price list, do not include its cost in the total."),
+    needsPrice: z.boolean().describe("Set to true if any of the recommended repair types do not have a price in the provided list, otherwise set to false."),
     estimatedRemainingLife: z.string().describe("An estimate of the remaining life of the asset. It MUST be one of the following values: '0-5 years', '5-10 years', '10-15 years', '15-20 years', or '20-25 years'."),
 });
+
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
     recommendations: z.array(SingleAssetRecommendationSchema),
@@ -115,7 +116,7 @@ const allAssetsPrompt = ai.definePrompt({
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
   prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks:
 1.  Estimate the remaining life.
-2.  Recommend a repair.
+2.  Recommend repairs.
 
 You must provide a response for every asset.
 
@@ -130,45 +131,27 @@ For each asset, provide an estimate of its remaining useful life.
 
 ---
 **TASK 2: RECOMMEND REPAIRS (FOR EACH ASSET)**
-After estimating the remaining life, determine the appropriate repair recommendation by following this logic precisely:
+For each asset, you will create a list of one or more repair recommendations. Follow this logic precisely:
 
-1.  **PRIORITY 1: APPLY USER-DEFINED REPAIR RULES.**
-    - For each asset, check if its data matches any of the user-defined "Repair Rules" provided below. When comparing text, IGNORE CASE SENSITIVITY (e.g., 'Concrete' should match 'concrete').
-    - If an asset's data satisfies a rule's conditions, you MUST use the recommendation from that rule.
-    - When a rule matches:
-        - Set 'recommendation' to the text provided in the rule.
-        - Set 'recommendedRepairType' to the SAME text.
-        - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
-        - If a confident match is found, set 'estimatedCost' to its 'unitPrice' and 'needsPrice' to false.
-        - If you DO NOT find a confident match, set 'estimatedCost' to 0 and 'needsPrice' to true.
-    - Once a rule matches, STOP further repair analysis for that asset and use this as its recommendation for Task 2.
+1.  **COMBINE RULE-BASED AND FIELD-NOTE-BASED ANALYSIS.**
+    - First, check if the asset's data matches any of the user-defined "Repair Rules". Collect all matching rule-based recommendations.
+    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems.
+    - Combine the findings from both sources to create a final list of recommendations. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
 
-2.  **PRIORITY 2: INTELLIGENT MATCHING (ONLY if no repair rule applies).**
-    - If no user rule matches an asset, then analyze its 'Field Notes' and other properties.
-    - Intelligently search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem described. Be flexible with synonyms (e.g., 'cracked cover' matches 'Lid Replacement').
-    - If a confident match is found:
-        - Set 'recommendation' to a short summary (e.g., "Replace damaged lid").
-        - Set 'recommendedRepairType' to the exact 'repairType' from the price list.
-        - Set 'estimatedCost' to the corresponding 'unitPrice'.
-        - Set 'needsPrice' to false.
-    - If 'Field Notes' describe a problem but you CANNOT find a matching repair:
-        - Set 'recommendation' to describe the needed repair (e.g., "Repair crack in tank").
-        - Set 'recommendedRepairType' to a new, descriptive name (e.g., "Tank Crack Repair").
-        - Set 'estimatedCost' to 0.
-        - Set 'needsPrice' to true.
+2.  **DETERMINE REPAIR DETAILS.**
+    - For each identified problem (from rules or field notes), determine the repair details:
+    - **Recommendation Summary**: A short description of the repair (e.g., "Replace damaged lid", "Move tank to meet setback").
+    - **Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem. Be flexible with synonyms (e.g., a rule for a 'cracked cover' should match the 'Lid Replacement' repair type).
+    - If a confident match is found in the price list, use the exact 'repairType' from the list.
+    - If you DO NOT find a confident match (either for a rule-based repair or a field note repair), create a new, descriptive name for the 'repairType' (e.g., "Tank Crack Repair", "Move Tank").
 
-3.  **PRIORITY 3: GENERAL INSPECTION.**
-    - If no rules apply and 'Field Notes' are empty or non-specific (e.g., "OK"), then look at the condition scores.
-    - If any condition score is 3 or less, recommend a general inspection.
-    - Set 'recommendation' to "General Inspection Recommended".
-    - Set 'recommendedRepairType' to "General Inspection".
-    - Set 'estimatedCost' to 0 and 'needsPrice' to true.
+3.  **CALCULATE COSTS.**
+    - After identifying all repair types for an asset, calculate the total 'estimatedCost'.
+    - Sum the 'unitPrice' for every recommended repair type that is found in the 'Available Repairs and Prices' list.
+    - If any recommended repair type is NOT on the price list, set 'needsPrice' to true and exclude it from the cost calculation.
 
-4.  **PRIORITY 4: NO ACTION NEEDED.**
-    - If no rules apply, 'Field Notes' are clear (e.g., "OK", "No issues"), and condition scores are good (4 or 5), then no action is needed.
-    - Set 'recommendation' to "No action needed".
-    - Set 'recommendedRepairType' to "None".
-    - Set 'estimatedCost' to 0 and 'needsPrice' to false.
+4.  **HANDLE NO ACTION.**
+    - If no rules apply, 'Field Notes' are clear (e.g., "OK"), and condition scores are good (4 or 5), then no action is needed. In this case, the recommendation list should contain only "No action needed", the recommendedRepairType list should contain "None", and the cost should be 0.
 
 ---
 **Remaining Life Rules (Used for Task 1):**
