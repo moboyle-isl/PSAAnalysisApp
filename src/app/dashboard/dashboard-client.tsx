@@ -77,7 +77,7 @@ import { ProjectSwitcher } from '@/components/project-switcher';
 import { useProjects } from '@/hooks/use-projects';
 
 type AssetWithRecommendation = Asset & { 
-  recommendation?: string;
+  recommendation?: string[];
   estimatedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
@@ -386,14 +386,12 @@ export function DashboardClient() {
         return `If (${conditionsString}), ${outcome}`;
       };
 
-      const repairRulesString = rules.filter(r => r.ruleType === 'REPAIR').map(createRuleString).filter(Boolean).join('\n');
-      const lifeRulesString = rules.filter(r => r.ruleType === 'REMAINING_LIFE').map(createRuleString).filter(Boolean).join('\n');
+      const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
 
       const result = await recommendRepairsForAllAssets({
         assets: assets,
         repairPrices: repairPrices,
-        repairRules: repairRulesString,
-        lifeRules: lifeRulesString,
+        rules: rulesString,
       });
 
       const recommendationsMap = new Map(
@@ -648,14 +646,16 @@ export function DashboardClient() {
          return (
           <Textarea
             autoFocus
-            defaultValue={value as string}
+            defaultValue={Array.isArray(value) ? value.join(', ') : (value as string)}
             onBlur={(e) => {
-              handleValueChange(asset.assetId, key as keyof Asset, e.target.value);
+              const updatedValue = key === 'recommendation' ? e.target.value.split(',').map(s => s.trim()) : e.target.value;
+              handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
-                handleValueChange(asset.assetId, key as keyof Asset, e.currentTarget.value);
+                const updatedValue = key === 'recommendation' ? e.currentTarget.value.split(',').map(s => s.trim()) : e.currentTarget.value;
+                handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
                 setEditingCell(null);
               }
             }}
@@ -701,9 +701,10 @@ export function DashboardClient() {
     }
     
     if (key === 'recommendation') {
+      const displayValue = Array.isArray(value) ? value.join(', ') : String(value ?? '');
       return (
         <div className="whitespace-pre-wrap">
-          <span>{String(value ?? '')}</span>
+          <span>{displayValue}</span>
           {asset.needsPrice && (
             <p className="text-xs text-destructive">
               Please add a price for this repair in the Price Configuration tool.
@@ -721,7 +722,9 @@ export function DashboardClient() {
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
-    if (key === 'assetId' || key === 'recommendation' || key === 'estimatedCost' || key === 'actions' || key === 'estimatedRemainingLife') return false;
+    if (key === 'assetId' || key === 'estimatedCost' || key === 'actions') return false;
+    // Recommendations and life are now editable for overrides
+    // if (key === 'recommendation' || key === 'estimatedRemainingLife') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
   }
