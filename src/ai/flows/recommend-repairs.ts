@@ -67,11 +67,17 @@ const GenerateCostsInputSchema = z.object({
 });
 export type GenerateCostsInput = z.infer<typeof GenerateCostsInputSchema>;
 
+const CostBreakdownItemSchema = z.object({
+    repairType: z.string().describe("The specific repair type from the price list."),
+    unitPrice: z.number().describe("The unit price for this repair type."),
+});
+
 const SingleAssetCostSchema = z.object({
     assetId: z.string(),
     recommendedRepairType: z.array(z.string()).describe("A list of specific repair types derived from the user's recommendation. This can be from the provided price list or a new one if appropriate. If no specific repair is applicable, return ['None']."),
     estimatedCost: z.number().describe("The total estimated cost for all recommended repairs. If any recommended repair type is not in the price list, do not include its cost in the total."),
     needsPrice: z.boolean().describe("Set to true if any of the recommended repair types do not have a price in the provided list, otherwise set to false."),
+    costBreakdown: z.array(CostBreakdownItemSchema).describe("A detailed list of each repair and its cost that contributed to the total estimatedCost."),
 });
 
 const GenerateCostsOutputSchema = z.object({
@@ -176,24 +182,25 @@ const generateCostsPrompt = ai.definePrompt({
 
 For each asset provided, you will perform the following steps:
 
-1.  **DETERMINE REPAIR DETAILS.**
-    - Read the user's final recommendation from the 'userRecommendation' field.
-    - For each problem described in the user's recommendation:
-        - **Identify Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem. Be flexible with synonyms (e.g., a recommendation for a 'cracked cover' should match the 'Lid Replacement' repair type).
-        - If a confident match is found in the price list, use the exact 'repairType' from the list.
-        - If you DO NOT find a confident match, create a new, descriptive name for the 'repairType' (e.g., "Tank Crack Repair", "Move Tank").
-    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None".
+1.  **IDENTIFY REPAIRS AND BUILD COST BREAKDOWN.**
+    - Create an empty 'costBreakdown' list for the asset.
+    - Read the user's final recommendation list from the 'userRecommendation' field.
+    - For each item in the 'userRecommendation' list:
+        - Perform an **exact, case-insensitive search** for the item text in the 'repairType' field of the 'Available Repairs and Prices' list.
+        - **DO NOT USE SYNONYMS OR INFER MATCHES.** The match must be exact.
+        - If a direct match is found, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
+        - If no exact match is found, you will still account for this repair later, but do not add it to the cost breakdown.
 
-2.  **CALCULATE COSTS.**
-    - After identifying all repair types for an asset, calculate the total 'estimatedCost'.
-    - Sum the 'unitPrice' for every recommended repair type that is found in the 'Available Repairs and Prices' list.
-    - If any recommended repair type is NOT on the price list, set 'needsPrice' to true and exclude its cost from the cost calculation.
-    - If the recommendation is "None", the 'estimatedCost' should be 0.
+2.  **FINALIZE REPAIR LIST AND COST.**
+    - The final 'recommendedRepairType' list should contain ALL items from the user's recommendation list, regardless of whether they were found in the price list.
+    - Calculate the total 'estimatedCost' by summing the 'unitPrice' for every item in the 'costBreakdown' list you built. The cost should only include items with a price.
+    - Set 'needsPrice' to true if any item from the 'userRecommendation' list was not found in the 'Available Repairs and Prices' list. Otherwise, set it to false.
+    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None", 'costBreakdown' should be an empty array, 'estimatedCost' should be 0, and 'needsPrice' should be false.
 
 ---
 **Available Repairs and Prices:**
 {{#each repairPrices}}
-- {{repairType}}: \${{unitPrice}}
+- {{repairType}}: \${{unitPrice}} (Description: {{description}})
 {{/each}}
 
 ---

@@ -76,12 +76,18 @@ import { PageHeader } from '@/components/page-header';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { useProjects } from '@/hooks/use-projects';
 
+type CostBreakdownItem = {
+  repairType: string;
+  unitPrice: number;
+};
+
 type AssetWithRecommendation = Asset & { 
   recommendation?: string[];
   userRecommendation?: string[];
   estimatedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
+  costBreakdown?: CostBreakdownItem[];
 };
 
 type Column = {
@@ -414,6 +420,7 @@ export function DashboardClient() {
             estimatedRemainingLife: rec.estimatedRemainingLife,
             estimatedCost: undefined, // Clear old costs
             needsPrice: false,
+            costBreakdown: [],
           } : asset;
         })
       );
@@ -452,6 +459,7 @@ export function DashboardClient() {
         result.costs.map((c) => [c.assetId, {
           estimatedCost: c.estimatedCost,
           needsPrice: c.needsPrice,
+          costBreakdown: c.costBreakdown,
         }])
       );
 
@@ -499,6 +507,7 @@ export function DashboardClient() {
       estimatedCost: undefined,
       needsPrice: false,
       estimatedRemainingLife: undefined,
+      costBreakdown: [],
     };
     setAssets(prev => [newAsset, ...prev]);
     toast({
@@ -741,10 +750,49 @@ export function DashboardClient() {
     }
      if (key === 'estimatedCost') {
       const cost = value as number;
+      const breakdown = asset.costBreakdown || [];
+
+      if (cost === undefined || cost === null || cost <= 0) {
+        return <span>-</span>
+      }
+      
       return (
-        <span className="truncate">
-          {cost !== undefined && cost !== null && cost > 0 ? `$${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
-        </span>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="link" className="p-0 h-auto font-normal text-foreground">
+              ${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80">
+            <div className="grid gap-4">
+              <div className="space-y-2">
+                <h4 className="font-medium leading-none">Cost Breakdown</h4>
+                <p className="text-sm text-muted-foreground">
+                  The following repairs were used to calculate the total cost.
+                </p>
+              </div>
+              <div className="grid gap-2">
+                {breakdown.length > 0 ? (
+                  breakdown.map((item, index) => (
+                    <div key={index} className="grid grid-cols-2 items-center gap-4 text-sm">
+                      <span className="truncate">{item.repairType}</span>
+                       <span className="text-right font-medium">
+                        ${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No priced repairs found.</p>
+                )}
+                 {asset.needsPrice && (
+                  <p className="text-xs text-destructive mt-2">
+                    One or more recommended repairs requires a price in the Price Configuration tool.
+                  </p>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       );
     }
     
@@ -753,11 +801,6 @@ export function DashboardClient() {
       return (
         <div className="whitespace-pre-wrap">
           <span>{displayValue}</span>
-          {key === 'estimatedCost' && asset.needsPrice && (
-            <p className="text-xs text-destructive">
-              Please add a price for this repair in the Price Configuration tool.
-            </p>
-          )}
         </div>
       );
     }
@@ -871,7 +914,7 @@ export function DashboardClient() {
             </AlertDialog>
         </PageHeader>
         <div className="flex-1 p-6 pt-0 bg-card rounded-b-lg flex flex-col space-y-4">
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-hidden flex flex-col space-y-4 h-full">
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

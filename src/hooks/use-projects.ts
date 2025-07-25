@@ -7,12 +7,18 @@ import type { Asset, RepairPrice } from '@/lib/data';
 import { initialAssets, initialRepairPrices } from '@/lib/data';
 import type { Rule } from '@/app/rules/rules-client';
 
+type CostBreakdownItem = {
+  repairType: string;
+  unitPrice: number;
+};
+
 type AssetWithRecommendation = Asset & { 
   recommendation?: string[];
   userRecommendation?: string[];
   estimatedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
+  costBreakdown?: CostBreakdownItem[];
 };
 
 // Define the structure of a project snapshot
@@ -31,7 +37,7 @@ export type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
+const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,
