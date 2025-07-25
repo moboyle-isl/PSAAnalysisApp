@@ -84,7 +84,8 @@ type CostBreakdownItem = {
 type AssetWithRecommendation = Asset & { 
   recommendation?: string[];
   userRecommendation?: string[];
-  estimatedCost?: number;
+  aiEstimatedCost?: number;
+  userVerifiedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
   costBreakdown?: CostBreakdownItem[];
@@ -119,7 +120,8 @@ const ALL_COLUMNS: Column[] = [
     { key: 'estimatedRemainingLife', label: 'Est. Remaining Life', type: 'string', width: '150px' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
     { key: 'userRecommendation', label: 'User Recommendation', type: 'string', width: '300px' },
-    { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
+    { key: 'aiEstimatedCost', label: 'AI Est. Cost', type: 'number', width: '120px' },
+    { key: 'userVerifiedCost', label: 'User Verified Cost', type: 'number', width: '140px' },
     { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
 
@@ -197,7 +199,8 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   estimatedRemainingLife: true,
   recommendation: true,
   userRecommendation: true,
-  estimatedCost: true,
+  aiEstimatedCost: true,
+  userVerifiedCost: true,
   actions: true,
 };
 
@@ -358,7 +361,7 @@ export function DashboardClient() {
   }, [isClient, assets, filters, sortConfig, columnVisibility]);
   
   const totalRepairCost = useMemo(() => {
-    return processedAssets.reduce((total, asset) => total + (asset.estimatedCost || 0), 0);
+    return processedAssets.reduce((total, asset) => total + (asset.userVerifiedCost ?? asset.aiEstimatedCost ?? 0), 0);
   }, [processedAssets]);
 
 
@@ -418,7 +421,8 @@ export function DashboardClient() {
             recommendation: rec.recommendation,
             userRecommendation: rec.recommendation, // Populate user recs initially
             estimatedRemainingLife: rec.estimatedRemainingLife,
-            estimatedCost: undefined, // Clear old costs
+            aiEstimatedCost: undefined, // Clear old costs
+            userVerifiedCost: undefined, // Clear old costs
             needsPrice: false,
             costBreakdown: [],
           } : asset;
@@ -457,7 +461,8 @@ export function DashboardClient() {
 
       const costsMap = new Map(
         result.costs.map((c) => [c.assetId, {
-          estimatedCost: c.estimatedCost,
+          aiEstimatedCost: c.estimatedCost,
+          userVerifiedCost: c.estimatedCost, // Initially set user cost to AI cost
           needsPrice: c.needsPrice,
           costBreakdown: c.costBreakdown,
         }])
@@ -504,7 +509,8 @@ export function DashboardClient() {
       assetId: newAssetId,
       recommendation: undefined,
       userRecommendation: undefined,
-      estimatedCost: undefined,
+      aiEstimatedCost: undefined,
+      userVerifiedCost: undefined,
       needsPrice: false,
       estimatedRemainingLife: undefined,
       costBreakdown: [],
@@ -569,7 +575,7 @@ export function DashboardClient() {
 
   const handleValueChange = (
     assetId: string,
-    key: keyof Asset,
+    key: keyof AssetWithRecommendation,
     value: string | number | string[]
   ) => {
     const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
@@ -644,7 +650,7 @@ export function DashboardClient() {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key as keyof Asset, newValue);
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, newValue);
               setEditingCell(null);
             }}
           >
@@ -663,7 +669,7 @@ export function DashboardClient() {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key as keyof Asset, newValue);
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, newValue);
               setEditingCell(null);
             }}
           >
@@ -684,7 +690,7 @@ export function DashboardClient() {
           <Select
             defaultValue={value as string}
             onValueChange={(newValue) => {
-              handleValueChange(asset.assetId, key as keyof Asset, newValue);
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, newValue);
               setEditingCell(null);
             }}
           >
@@ -706,13 +712,13 @@ export function DashboardClient() {
             defaultValue={Array.isArray(value) ? value.join(', ') : (value as string)}
             onBlur={(e) => {
               const updatedValue = (key === 'recommendation' || key === 'userRecommendation') ? e.target.value.split(',').map(s => s.trim()) : e.target.value;
-              handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, updatedValue);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 const updatedValue = (key === 'recommendation' || key === 'userRecommendation') ? e.currentTarget.value.split(',').map(s => s.trim()) : e.currentTarget.value;
-                handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
+                handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, updatedValue);
                 setEditingCell(null);
               }
             }}
@@ -733,13 +739,13 @@ export function DashboardClient() {
             min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
               const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
-              handleValueChange(asset.assetId, key as keyof Asset, val);
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const val = typeof value === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value;
-                handleValueChange(asset.assetId, key as keyof Asset, val);
+                handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
                 setEditingCell(null);
               }
             }}
@@ -748,7 +754,7 @@ export function DashboardClient() {
         );
       }
     }
-     if (key === 'estimatedCost') {
+     if (key === 'aiEstimatedCost') {
       const cost = value as number;
       const breakdown = asset.costBreakdown || [];
 
@@ -795,6 +801,14 @@ export function DashboardClient() {
         </Popover>
       );
     }
+
+    if (key === 'userVerifiedCost') {
+      const cost = value as number;
+      if (cost === undefined || cost === null) {
+        return <span className="text-muted-foreground">-</span>;
+      }
+      return <span>${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
+    }
     
     if (key === 'recommendation' || key === 'userRecommendation') {
       const displayValue = Array.isArray(value) ? value.join(', ') : String(value ?? '');
@@ -813,7 +827,7 @@ export function DashboardClient() {
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
-    if (key === 'assetId' || key === 'estimatedCost' || key === 'actions' || key === 'recommendation') return false;
+    if (key === 'assetId' || key === 'aiEstimatedCost' || key === 'actions' || key === 'recommendation') return false;
     // if (key === 'recommendation' || key === 'estimatedRemainingLife') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;

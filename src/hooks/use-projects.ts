@@ -15,7 +15,8 @@ type CostBreakdownItem = {
 type AssetWithRecommendation = Asset & { 
   recommendation?: string[];
   userRecommendation?: string[];
-  estimatedCost?: number;
+  aiEstimatedCost?: number;
+  userVerifiedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
   costBreakdown?: CostBreakdownItem[];
@@ -37,7 +38,7 @@ export type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
+const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, aiEstimatedCost: undefined, userVerifiedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,
