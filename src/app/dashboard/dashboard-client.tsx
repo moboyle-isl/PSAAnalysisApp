@@ -823,7 +823,7 @@ export function DashboardClient() {
                 </AlertDialogContent>
             </AlertDialog>
         </PageHeader>
-        <div className="flex-1 p-6 pt-0 bg-card rounded-b-lg overflow-hidden flex flex-col space-y-4">
+        <div className="flex-1 p-6 pt-0 bg-card rounded-b-lg flex flex-col space-y-4">
 
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
          <Card>
@@ -1207,55 +1207,55 @@ export function DashboardClient() {
             </div>
           )}
       </div>
-      <ScrollArea className="flex-grow border rounded-lg">
-        <Table className="table-fixed w-full">
-          <TableHeader className="sticky top-0 bg-card z-10">
-            <TableRow>
-              {visibleColumns.map((header) => (
-                <TableHead key={header.key} style={{ width: header.width }} className={header.type !== 'action' ? 'cursor-pointer' : ''} onClick={() => header.type !== 'action' && requestSort(header.key as keyof AssetWithRecommendation)}>
-                  <div className="flex items-center gap-2">
-                    {header.label}
-                    {isClient && sortConfig?.key === header.key && (
-                       sortConfig.direction === 'ascending' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
-                    )}
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isReady ? processedAssets.map((asset) => (
-              <TableRow key={asset.assetId}>
+       <div className="relative flex-grow">
+        <ScrollArea className="absolute inset-0 border rounded-lg">
+            <Table className="table-fixed w-full">
+            <TableHeader className="sticky top-0 bg-card z-10">
+                <TableRow>
                 {visibleColumns.map((header) => (
-                  <TableCell
-                    key={header.key}
-                    onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
-                    className={cn(
-                      isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : '',
-                      'whitespace-pre-wrap'
-                    )}
-                  >
-                    {renderCellContent(asset, header.key)}
-                  </TableCell>
+                    <TableHead key={header.key} style={{ width: header.width }} className={header.type !== 'action' ? 'cursor-pointer' : ''} onClick={() => header.type !== 'action' && requestSort(header.key as keyof AssetWithRecommendation)}>
+                    <div className="flex items-center gap-2">
+                        {header.label}
+                        {isClient && sortConfig?.key === header.key && (
+                        sortConfig.direction === 'ascending' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+                        )}
+                    </div>
+                    </TableHead>
                 ))}
-              </TableRow>
-            )) : (
-              Array.from({ length: 5 }).map((_, index) => (
-                  <TableRow key={`skeleton-${index}`}>
-                      {visibleColumns.map(header => (
-                          <TableCell key={header.key}>
-                              <Skeleton className="h-6 w-full" />
-                          </TableCell>
-                      ))}
-                  </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {isReady ? processedAssets.map((asset) => (
+                <TableRow key={asset.assetId}>
+                    {visibleColumns.map((header) => (
+                    <TableCell
+                        key={header.key}
+                        onClick={() => isClient && isCellEditable(asset, header.key) && setEditingCell(`${asset.assetId}-${header.key}`)}
+                        className={cn(
+                        isClient && isCellEditable(asset, header.key) ? 'cursor-pointer' : '',
+                        'whitespace-pre-wrap'
+                        )}
+                    >
+                        {renderCellContent(asset, header.key)}
+                    </TableCell>
+                    ))}
+                </TableRow>
+                )) : (
+                Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                        {visibleColumns.map(header => (
+                            <TableCell key={header.key}>
+                                <Skeleton className="h-6 w-full" />
+                            </TableCell>
+                        ))}
+                    </TableRow>
+                ))
+                )}
+            </TableBody>
+            </Table>
+        </ScrollArea>
+       </div>
       </div>
     </div>
   );
 }
-
-    
