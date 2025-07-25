@@ -361,7 +361,7 @@ export function DashboardClient() {
   }, [isClient, assets, filters, sortConfig, columnVisibility]);
   
   const totalRepairCost = useMemo(() => {
-    return processedAssets.reduce((total, asset) => total + (asset.userVerifiedCost ?? asset.aiEstimatedCost ?? 0), 0);
+    return processedAssets.reduce((total, asset) => total + (asset.userVerifiedCost ?? 0), 0);
   }, [processedAssets]);
 
 
@@ -462,7 +462,7 @@ export function DashboardClient() {
       const costsMap = new Map(
         result.costs.map((c) => [c.assetId, {
           aiEstimatedCost: c.estimatedCost,
-          userVerifiedCost: c.estimatedCost, // Initially set user cost to AI cost
+          userVerifiedCost: undefined,
           needsPrice: c.needsPrice,
           costBreakdown: c.costBreakdown,
         }])
