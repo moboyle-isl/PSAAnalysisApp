@@ -23,7 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Wand2, Loader2, View, Filter as FilterIcon, X, CircleDollarSign, Plus, Trash, ArrowUpDown, ArrowUp, ArrowDown, Download, Upload, Save, PlusCircle } from 'lucide-react';
-import { recommendRepairsForAllAssets } from '@/app/actions';
+import { recommendRepairsForAllAssets, generateCostsForRecommendations } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -78,6 +78,7 @@ import { useProjects } from '@/hooks/use-projects';
 
 type AssetWithRecommendation = Asset & { 
   recommendation?: string[];
+  userRecommendation?: string[];
   estimatedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
@@ -109,9 +110,10 @@ const ALL_COLUMNS: Column[] = [
     { key: 'interiorCondition', label: 'Interior Condition', type: 'number', width: '120px' },
     { key: 'overallCondition', label: 'Overall Condition', type: 'number', width: '120px' },
     { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
-    { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
-    { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
     { key: 'estimatedRemainingLife', label: 'Est. Remaining Life', type: 'string', width: '150px' },
+    { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
+    { key: 'userRecommendation', label: 'User Recommendation', type: 'string', width: '300px' },
+    { key: 'estimatedCost', label: 'Est. Cost', type: 'number', width: '120px' },
     { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
 
@@ -186,9 +188,10 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   interiorCondition: true,
   overallCondition: true,
   fieldNotes: true,
-  recommendation: true,
-  estimatedCost: true,
   estimatedRemainingLife: true,
+  recommendation: true,
+  userRecommendation: true,
+  estimatedCost: true,
   actions: true,
 };
 
@@ -207,6 +210,7 @@ export function DashboardClient() {
   } = projectsHook;
   const [editingCell, setEditingCell] = useState<string | null>(null); // 'rowId-colKey'
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingCosts, setIsGeneratingCosts] = useState(false);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const [isNewAssetDialogOpen, setIsNewAssetDialogOpen] = useState(false);
@@ -390,15 +394,12 @@ export function DashboardClient() {
       
       const result = await recommendRepairsForAllAssets({
         assets: assets,
-        repairPrices: repairPrices,
         rules: rulesString,
       });
 
       const recommendationsMap = new Map(
         result.recommendations.map((r) => [r.assetId, { 
             recommendation: r.recommendation, 
-            estimatedCost: r.estimatedCost, 
-            needsPrice: r.needsPrice,
             estimatedRemainingLife: r.estimatedRemainingLife,
         }])
       );
@@ -409,16 +410,17 @@ export function DashboardClient() {
           return rec ? {
             ...asset,
             recommendation: rec.recommendation,
-            estimatedCost: rec.estimatedCost,
-            needsPrice: rec.needsPrice,
+            userRecommendation: rec.recommendation, // Populate user recs initially
             estimatedRemainingLife: rec.estimatedRemainingLife,
+            estimatedCost: undefined, // Clear old costs
+            needsPrice: false,
           } : asset;
         })
       );
 
       toast({
         title: "Recommendations Generated",
-        description: "AI recommendations have been added for all assets.",
+        description: "AI recommendations have been generated. Review and then generate costs.",
       });
 
     } catch (error) {
@@ -432,6 +434,51 @@ export function DashboardClient() {
       setIsGenerating(false);
     }
   };
+
+  const handleGenerateCosts = async () => {
+    setIsGeneratingCosts(true);
+    try {
+      const assetsForCosting = assets.map(asset => ({
+        assetId: asset.assetId,
+        userRecommendation: asset.userRecommendation || [],
+      }));
+
+      const result = await generateCostsForRecommendations({
+        assets: assetsForCosting,
+        repairPrices: repairPrices,
+      });
+
+      const costsMap = new Map(
+        result.costs.map((c) => [c.assetId, {
+          estimatedCost: c.estimatedCost,
+          needsPrice: c.needsPrice,
+        }])
+      );
+
+      setAssets((prevAssets) =>
+        prevAssets.map((asset) => {
+          const costInfo = costsMap.get(asset.assetId);
+          return costInfo ? { ...asset, ...costInfo } : asset;
+        })
+      );
+
+      toast({
+        title: "Costs Generated",
+        description: "Estimated costs have been calculated based on user recommendations.",
+      });
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: "An error occurred",
+        description: "Failed to generate costs. Please try again.",
+      });
+    } finally {
+      setIsGeneratingCosts(false);
+    }
+  };
+
 
   const handleAddNewAsset = (values: z.infer<typeof newAssetSchema>) => {
     const assetTypePrefix = values.septicSystemType === 'Cistern' ? 'C' : 'S';
@@ -448,6 +495,7 @@ export function DashboardClient() {
       ...values,
       assetId: newAssetId,
       recommendation: undefined,
+      userRecommendation: undefined,
       estimatedCost: undefined,
       needsPrice: false,
       estimatedRemainingLife: undefined,
@@ -642,19 +690,19 @@ export function DashboardClient() {
           </Select>
         );
       }
-      if (key === 'fieldNotes' || key === 'recommendation' || key === 'estimatedRemainingLife') {
+      if (key === 'fieldNotes' || key === 'recommendation' || key === 'userRecommendation' || key === 'estimatedRemainingLife') {
          return (
           <Textarea
             autoFocus
             defaultValue={Array.isArray(value) ? value.join(', ') : (value as string)}
             onBlur={(e) => {
-              const updatedValue = key === 'recommendation' ? e.target.value.split(',').map(s => s.trim()) : e.target.value;
+              const updatedValue = (key === 'recommendation' || key === 'userRecommendation') ? e.target.value.split(',').map(s => s.trim()) : e.target.value;
               handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
-                const updatedValue = key === 'recommendation' ? e.currentTarget.value.split(',').map(s => s.trim()) : e.currentTarget.value;
+                const updatedValue = (key === 'recommendation' || key === 'userRecommendation') ? e.currentTarget.value.split(',').map(s => s.trim()) : e.currentTarget.value;
                 handleValueChange(asset.assetId, key as keyof Asset, updatedValue);
                 setEditingCell(null);
               }
@@ -700,12 +748,12 @@ export function DashboardClient() {
       );
     }
     
-    if (key === 'recommendation') {
+    if (key === 'recommendation' || key === 'userRecommendation') {
       const displayValue = Array.isArray(value) ? value.join(', ') : String(value ?? '');
       return (
         <div className="whitespace-pre-wrap">
           <span>{displayValue}</span>
-          {asset.needsPrice && (
+          {key === 'estimatedCost' && asset.needsPrice && (
             <p className="text-xs text-destructive">
               Please add a price for this repair in the Price Configuration tool.
             </p>
@@ -722,8 +770,7 @@ export function DashboardClient() {
   };
 
   const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
-    if (key === 'assetId' || key === 'estimatedCost' || key === 'actions') return false;
-    // Recommendations and life are now editable for overrides
+    if (key === 'assetId' || key === 'estimatedCost' || key === 'actions' || key === 'recommendation') return false;
     // if (key === 'recommendation' || key === 'estimatedRemainingLife') return false;
     if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
     return true;
@@ -824,7 +871,7 @@ export function DashboardClient() {
             </AlertDialog>
         </PageHeader>
         <div className="flex-1 p-6 pt-0 bg-card rounded-b-lg flex flex-col space-y-4">
-
+        <div className="relative overflow-hidden">
        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -869,13 +916,21 @@ export function DashboardClient() {
       </div>
        <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-2">
-          <Button onClick={handleRunRecommendations} disabled={isGenerating || !isReady}>
+          <Button onClick={handleRunRecommendations} disabled={isGenerating || isGeneratingCosts || !isReady}>
             {isGenerating ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Wand2 className="mr-2 h-4 w-4" />
             )}
             Run AI Recommendations
+          </Button>
+          <Button onClick={handleGenerateCosts} disabled={isGenerating || isGeneratingCosts || !isReady}>
+            {isGeneratingCosts ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CircleDollarSign className="mr-2 h-4 w-4" />
+            )}
+            Generate Costs
           </Button>
            <Dialog open={isNewAssetDialogOpen} onOpenChange={setIsNewAssetDialogOpen}>
               <DialogTrigger asChild>
@@ -1255,6 +1310,7 @@ export function DashboardClient() {
             </Table>
         </ScrollArea>
        </div>
+      </div>
       </div>
     </div>
   );

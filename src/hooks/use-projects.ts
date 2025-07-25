@@ -8,7 +8,8 @@ import { initialAssets, initialRepairPrices } from '@/lib/data';
 import type { Rule } from '@/app/rules/rules-client';
 
 type AssetWithRecommendation = Asset & { 
-  recommendation?: string;
+  recommendation?: string[];
+  userRecommendation?: string[];
   estimatedCost?: number;
   needsPrice?: boolean;
   estimatedRemainingLife?: string;
@@ -30,7 +31,7 @@ export type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
+const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, estimatedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,

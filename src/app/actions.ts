@@ -3,8 +3,11 @@
 
 import {
   recommendRepairsForAllAssets as recommendRepairsForAllAssetsFlow,
+  generateCostsForRecommendations as generateCostsForRecommendationsFlow,
   type RecommendRepairsAllAssetsInput,
   type RecommendRepairsAllAssetsOutput,
+  type GenerateCostsInput,
+  type GenerateCostsOutput,
 } from '@/ai/flows/recommend-repairs';
 import type { RepairPrice } from '@/lib/data';
 import { initialRepairPrices } from '@/lib/data';
@@ -21,6 +24,19 @@ export async function recommendRepairsForAllAssets(
     throw new Error('Failed to recommend repairs.');
   }
 }
+
+export async function generateCostsForRecommendations(
+  data: GenerateCostsInput
+): Promise<GenerateCostsOutput> {
+  try {
+    const result = await generateCostsForRecommendationsFlow(data);
+    return result;
+  } catch (error) {
+    console.error(error);
+    throw new Error('Failed to generate costs.');
+  }
+}
+
 
 export async function getRepairPricesFromCookie(): Promise<RepairPrice[]> {
   const cookieStore = cookies();
