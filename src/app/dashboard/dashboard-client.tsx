@@ -474,6 +474,7 @@ export function DashboardClient() {
             return { 
                 ...asset, 
                 aiEstimatedCost: costInfo.aiEstimatedCost,
+                userVerifiedCost: undefined, // Clear old costs
                 needsPrice: costInfo.needsPrice,
                 costBreakdown: costInfo.costBreakdown,
             };
