@@ -775,7 +775,7 @@ export function DashboardClient() {
 
 
   return (
-    <div className="flex flex-col h-full space-y-4 pl-4 pr-4 overflow-x-auto">
+    <div className="flex flex-col h-full space-y-4 p-4">
         <PageHeader
             title="Asset Dashboard"
             description="View, edit, and analyze asset data with AI-powered recommendations."
@@ -1257,3 +1257,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
