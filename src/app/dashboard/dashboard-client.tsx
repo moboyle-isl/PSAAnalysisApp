@@ -615,6 +615,9 @@ export function DashboardClient() {
           if (key === 'septicSystemType') {
             updatedAsset.assetSubType = value === 'Cistern' ? 'Cistern' : 'Pump Out';
           }
+          if (key === 'userVerifiedCost' && typeof value === 'string') {
+            updatedAsset.userVerifiedCost = parseFloat(value) || 0;
+          }
           return updatedAsset;
         }
         return asset;
