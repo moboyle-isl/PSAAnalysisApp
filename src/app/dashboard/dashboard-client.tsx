@@ -774,8 +774,8 @@ export function DashboardClient() {
               <div className="grid gap-2">
                 {breakdown.length > 0 ? (
                   breakdown.map((item, index) => (
-                    <div key={index} className="grid grid-cols-2 items-center gap-4 text-sm">
-                      <span className="truncate">{item.repairType}</span>
+                    <div key={index} className="grid grid-cols-3 items-center gap-4 text-sm">
+                      <span className="col-span-2 truncate">{item.repairType}</span>
                        <span className="text-right font-medium">
                         ${item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
