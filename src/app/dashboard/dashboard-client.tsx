@@ -387,7 +387,7 @@ export function DashboardClient() {
       };
 
       const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
-
+      
       const result = await recommendRepairsForAllAssets({
         assets: assets,
         repairPrices: repairPrices,
@@ -513,7 +513,7 @@ export function DashboardClient() {
   const handleValueChange = (
     assetId: string,
     key: keyof Asset,
-    value: string | number
+    value: string | number | string[]
   ) => {
     const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
 
@@ -775,7 +775,7 @@ export function DashboardClient() {
 
 
   return (
-    <div className="flex flex-col h-full space-y-4">
+    <div className="flex flex-col h-full space-y-4 pl-4 pr-4 overflow-x-auto">
         <PageHeader
             title="Asset Dashboard"
             description="View, edit, and analyze asset data with AI-powered recommendations."
@@ -1257,5 +1257,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
