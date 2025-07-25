@@ -186,10 +186,10 @@ For each asset provided, you will perform the following steps:
     - Create an empty 'costBreakdown' list for the asset.
     - Read the user's final recommendation list from the 'userRecommendation' field.
     - For each item in the 'userRecommendation' list:
-        - Perform an **exact, case-insensitive search** for the item text in the 'repairType' field of the 'Available Repairs and Prices' list.
-        - **DO NOT USE SYNONYMS OR INFER MATCHES.** The match must be exact.
-        - If a direct match is found, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
-        - If no exact match is found, you will still account for this repair later, but do not add it to the cost breakdown.
+        - **Identify Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem. Be flexible with synonyms (e.g., a recommendation for a 'cracked cover' should match the 'Lid Replacement' repair type).
+            - If a confident match is found in the price list, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
+	        - If you DO NOT find a confident match, you will still account for this repair later, but do not add it to the cost breakdown.
+	    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None".
 
 2.  **FINALIZE REPAIR LIST AND COST.**
     - The final 'recommendedRepairType' list should contain ALL items from the user's recommendation list, regardless of whether they were found in the price list.
