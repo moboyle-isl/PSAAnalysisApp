@@ -462,7 +462,6 @@ export function DashboardClient() {
       const costsMap = new Map(
         result.costs.map((c) => [c.assetId, {
           aiEstimatedCost: c.estimatedCost,
-          userVerifiedCost: undefined,
           needsPrice: c.needsPrice,
           costBreakdown: c.costBreakdown,
         }])
@@ -471,7 +470,15 @@ export function DashboardClient() {
       setAssets((prevAssets) =>
         prevAssets.map((asset) => {
           const costInfo = costsMap.get(asset.assetId);
-          return costInfo ? { ...asset, ...costInfo } : asset;
+          if (costInfo) {
+            return { 
+                ...asset, 
+                aiEstimatedCost: costInfo.aiEstimatedCost,
+                needsPrice: costInfo.needsPrice,
+                costBreakdown: costInfo.costBreakdown,
+            };
+          }
+          return asset;
         })
       );
 
