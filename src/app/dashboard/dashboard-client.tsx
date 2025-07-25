@@ -361,7 +361,13 @@ export function DashboardClient() {
   }, [isClient, assets, filters, sortConfig, columnVisibility]);
   
   const totalRepairCost = useMemo(() => {
-    return processedAssets.reduce((total, asset) => total + (asset.userVerifiedCost ?? 0), 0);
+    return processedAssets.reduce((total, asset) => {
+        const cost = asset.userVerifiedCost;
+        if (typeof cost === 'number' && !isNaN(cost)) {
+            return total + cost;
+        }
+        return total;
+    }, 0);
   }, [processedAssets]);
 
 
@@ -474,7 +480,7 @@ export function DashboardClient() {
             return { 
                 ...asset, 
                 aiEstimatedCost: costInfo.aiEstimatedCost,
-                userVerifiedCost: undefined, // Clear old costs
+                userVerifiedCost: asset.userVerifiedCost, // Keep existing value
                 needsPrice: costInfo.needsPrice,
                 costBreakdown: costInfo.costBreakdown,
             };
