@@ -983,7 +983,7 @@ export function DashboardClient() {
                     <Skeleton className="h-8 w-1/2" />
                 )}
                 <p className="text-xs text-muted-foreground">
-                    Estimated cost for filtered assets
+                    User-verified costs for filtered assets
                 </p>
             </CardContent>
         </Card>
