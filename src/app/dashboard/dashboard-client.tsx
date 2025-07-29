@@ -1312,7 +1312,7 @@ export function DashboardClient() {
         </div>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
-          {filters.length > 0 && (
+          {isClient && filters.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium">Active Filters:</span>
               {filters.map(filter => {
@@ -1389,3 +1389,5 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
