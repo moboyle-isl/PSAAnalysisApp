@@ -100,6 +100,9 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
+  config: {
+    temperature: 0,
+  },
   prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks in a specific order:
 1.  Estimate the remaining life.
 2.  Recommend repairs.
