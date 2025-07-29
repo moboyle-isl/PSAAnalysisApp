@@ -2,7 +2,7 @@
 export type Asset = {
   assetId: string;
   address: string;
-  yearInstalled: number;
+  yearInstalled: number | string;
   material: 'Concrete' | 'Polyethylene' | 'Fibreglass';
   setbackFromWaterSource: number;
   setbackFromHouse: number;

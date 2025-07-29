@@ -56,7 +56,7 @@ export type Rule = {
 };
 
 export const ASSET_COLUMNS = [
-    { key: 'yearInstalled', label: 'Year Installed', type: 'number' },
+    { key: 'yearInstalled', label: 'Year Installed', type: 'string' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
     { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
     { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'] },
@@ -99,6 +99,9 @@ const conditionSchema = z.object({
     if (!selectedColumn) return true; // Let main schema handle required column
 
     if (selectedColumn.type === 'string') {
+        if (selectedColumn.key === 'yearInstalled') {
+             return !!data.value && data.value !== '';
+        }
         return !!data.conditionText && data.conditionText.length > 0;
     }
 
@@ -276,11 +279,16 @@ export function RulesClient() {
         if (!column) return null;
         
         let conditionStr = '';
-        if (column.type === 'string') {
+        if (column.type === 'string' && column.key !== 'yearInstalled') {
              conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> contains: <span className="font-mono p-1 bg-muted rounded-md">{cond.conditionText}</span></span>
         } else {
-            const operator = [...OPERATORS.number, ...OPERATORS.enum].find(o => o.value === cond.operator);
-            conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{String(cond.value)}</span></span>
+            const operator = [...OPERATORS.number, ...OPERATORS.enum, ...OPERATORS.string].find(o => o.value === cond.operator);
+            let valueToDisplay = String(cond.value);
+            if (column.key === 'yearInstalled' && cond.conditionText) {
+                valueToDisplay = cond.conditionText;
+            }
+
+            conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{valueToDisplay}</span></span>
         }
 
         return (
@@ -384,7 +392,7 @@ export function RulesClient() {
                             </Select>
                           </div>
 
-                          {selectedColumn && selectedColumn.type !== 'string' && (
+                          {selectedColumn && selectedColumn.key !== 'yearInstalled' && selectedColumn.type !== 'string' && (
                             <>
                               <div className="space-y-2">
                                 <Label>Is...</Label>
@@ -414,8 +422,12 @@ export function RulesClient() {
                           )}
                           {selectedColumn && selectedColumn.type === 'string' && (
                             <div className="space-y-2 md:col-span-2">
-                              <Label>And contains this text...</Label>
-                              <Input placeholder="e.g., 'roots', 'damaged lid'" value={condition.conditionText ?? ''} onChange={(e) => handleConditionChange(index, 'conditionText', e.target.value)} />
+                                <Label>And...</Label>
+                                {selectedColumn.key === 'yearInstalled' ? (
+                                     <Input placeholder="e.g., 2010 or Unknown" value={condition.value as string ?? ''} onChange={(e) => handleConditionChange(index, 'value', e.target.value)} />
+                                ) : (
+                                     <Input placeholder="e.g., 'roots', 'damaged lid'" value={condition.conditionText ?? ''} onChange={(e) => handleConditionChange(index, 'conditionText', e.target.value)} />
+                                )}
                             </div>
                           )}
                         </div>

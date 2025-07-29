@@ -12,7 +12,8 @@ type CostBreakdownItem = {
   unitPrice: number;
 };
 
-type AssetWithRecommendation = Asset & { 
+type AssetWithRecommendation = Omit<Asset, 'yearInstalled'> & { 
+  yearInstalled: number | string;
   abandoned: 'Yes' | 'No';
   recommendation?: string[];
   userRecommendation?: string[];
@@ -39,7 +40,7 @@ export type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, aiEstimatedCost: undefined, userVerifiedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
+const defaultAssets: AssetWithRecommendation[] = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, aiEstimatedCost: undefined, userVerifiedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,

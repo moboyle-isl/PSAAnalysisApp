@@ -83,7 +83,8 @@ type CostBreakdownItem = {
   unitPrice: number;
 };
 
-type AssetWithRecommendation = Asset & { 
+type AssetWithRecommendation = Omit<Asset, 'yearInstalled'> & { 
+  yearInstalled: number | string;
   abandoned: 'Yes' | 'No';
   recommendation?: string[];
   userRecommendation?: string[];
@@ -105,7 +106,7 @@ type Column = {
 const ALL_COLUMNS: Column[] = [
     { key: 'assetId', label: 'Asset ID', type: 'string', width: '120px' },
     { key: 'address', label: 'Address', type: 'string', width: '300px' },
-    { key: 'yearInstalled', label: 'Year Installed', type: 'number', width: '120px' },
+    { key: 'yearInstalled', label: 'Year Installed', type: 'string', width: '120px' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'], width: '120px' },
     { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'], width: '120px' },
     { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'], width: '120px' },
@@ -157,7 +158,11 @@ type SortConfig = {
 
 const newAssetSchema = z.object({
   address: z.string().min(1, 'Address is required.'),
-  yearInstalled: z.coerce.number().min(1900, 'Invalid year').max(new Date().getFullYear(), 'Year cannot be in the future.'),
+  yearInstalled: z.string().refine(val => {
+    if (val.toLowerCase() === 'unknown') return true;
+    const num = Number(val);
+    return !isNaN(num) && num >= 1900 && num <= new Date().getFullYear();
+  }, 'Must be "Unknown" or a year between 1900 and the current year.'),
   material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
   setbackFromWaterSource: z.coerce.number().min(0),
   setbackFromHouse: z.coerce.number().min(0),
@@ -248,7 +253,7 @@ export function DashboardClient() {
     resolver: zodResolver(newAssetSchema),
     defaultValues: {
       address: '',
-      yearInstalled: new Date().getFullYear(),
+      yearInstalled: String(new Date().getFullYear()),
       material: 'Concrete',
       setbackFromWaterSource: 0,
       setbackFromHouse: 0,
@@ -403,7 +408,7 @@ export function DashboardClient() {
                 return `${columnLabel} ${operatorText} "${condition.conditionText}"`;
             }
 
-            if ((columnDef.type === 'number' || columnDef.type === 'enum') && condition.value !== undefined) {
+            if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
                  if (operatorText) {
                     return `${columnLabel} ${operatorText} ${condition.value}`;
                 }
@@ -424,7 +429,7 @@ export function DashboardClient() {
       const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
       
       const result = await recommendRepairsForAllAssets({
-        assets: assets,
+        assets: assets.map(a => ({...a, yearInstalled: a.yearInstalled || 'Unknown'})),
         rules: rulesString,
       });
 
@@ -538,6 +543,7 @@ export function DashboardClient() {
 
     const newAsset: AssetWithRecommendation = {
       ...values,
+      yearInstalled: values.yearInstalled.toLowerCase() === 'unknown' ? 'Unknown' : Number(values.yearInstalled),
       assetId: newAssetId,
       recommendation: undefined,
       userRecommendation: undefined,
@@ -636,6 +642,10 @@ export function DashboardClient() {
           if (key === 'userVerifiedCost' && typeof value === 'string') {
             updatedAsset.userVerifiedCost = parseFloat(value) || undefined;
           }
+           if (key === 'yearInstalled') {
+            const numVal = Number(value);
+            updatedAsset.yearInstalled = isNaN(numVal) ? String(value) : numVal;
+          }
           return updatedAsset;
         }
         return asset;
@@ -659,16 +669,26 @@ export function DashboardClient() {
           throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
         }
 
-        const newAssets = data.map((row: any, index: number): AssetWithRecommendation => {
+        const newAssets = data.map((row: any, index: number): AssetWithRecommendation | null => {
           if (!row.assetId) {
             console.warn(`Skipping row ${index + 2} due to missing assetId.`);
             return null;
           }
+
+          const yearInstalledRaw = row.yearInstalled;
+          let yearInstalled: number | string;
+          if (yearInstalledRaw === null || yearInstalledRaw === undefined || String(yearInstalledRaw).trim() === '') {
+            yearInstalled = 'Unknown';
+          } else {
+             const numYear = Number(yearInstalledRaw);
+             yearInstalled = isNaN(numYear) ? String(yearInstalledRaw) : numYear;
+          }
+          
           // Basic validation and type conversion
-          const asset: Asset = {
+          const asset: Omit<Asset, 'yearInstalled'> & { yearInstalled: number | string } = {
               assetId: String(row.assetId),
               address: String(row.address ?? ''),
-              yearInstalled: Number(row.yearInstalled || new Date().getFullYear()),
+              yearInstalled: yearInstalled,
               material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
               setbackFromWaterSource: parseFloat(Number(row.setbackFromWaterSource || 0).toFixed(2)),
               setbackFromHouse: parseFloat(Number(row.setbackFromHouse || 0).toFixed(2)),
@@ -915,21 +935,22 @@ export function DashboardClient() {
         // Not editable if it's a Cistern
       } else {
         const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
+        const inputType = key === 'yearInstalled' ? 'text' : (typeof value === 'number' ? 'number' : 'text');
         return (
           <Input
             autoFocus
-            type={key === 'userVerifiedCost' || typeof value === 'number' ? 'number' : 'text'}
+            type={inputType}
             defaultValue={value as string | number}
             max={isConditionField ? 5 : undefined}
             min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
-              const val = (key === 'userVerifiedCost' || typeof value === 'number') ? parseFloat(e.target.value) : e.target.value;
+              const val = (typeof value === 'number' && key !== 'yearInstalled') ? parseFloat(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const val = (key === 'userVerifiedCost' || typeof value === 'number') ? parseFloat(e.currentTarget.value) : e.currentTarget.value;
+                const val = (typeof value === 'number' && key !== 'yearInstalled') ? parseFloat(e.currentTarget.value) : e.currentTarget.value;
                 handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
                 setEditingCell(null);
               }
@@ -1004,7 +1025,7 @@ export function DashboardClient() {
       );
     }
     
-    if (key === 'fieldNotes' || key === 'estimatedRemainingLife') {
+    if (key === 'fieldNotes' || key === 'estimatedRemainingLife' || key === 'yearInstalled') {
         return <span className="whitespace-pre-wrap">{String(value ?? '')}</span>;
     }
 
@@ -1022,6 +1043,7 @@ export function DashboardClient() {
     if (!currentFilter.column) return null;
     
     const columnType = ALL_COLUMNS.find(c => c.key === currentFilter.column?.key)?.type;
+    const key = currentFilter.column?.key;
 
     if (columnType === 'enum' && currentFilter.column.options) {
       return (
@@ -1038,7 +1060,7 @@ export function DashboardClient() {
 
     return (
        <Input 
-         type={columnType === 'number' ? 'number' : 'text'}
+         type={columnType === 'number' && key !== 'yearInstalled' ? 'number' : 'text'}
          placeholder="Enter value..."
          value={currentFilter.value || ''}
          onChange={(e) => setCurrentFilter(f => ({ ...f, value: e.target.value }))}
@@ -1232,7 +1254,7 @@ export function DashboardClient() {
                         <FormField control={form.control} name="yearInstalled" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Year Installed</FormLabel>
-                                <FormControl><Input type="number" {...field} /></FormControl>
+                                <FormControl><Input type="text" {...field} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )} />

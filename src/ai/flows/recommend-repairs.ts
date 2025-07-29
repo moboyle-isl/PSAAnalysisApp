@@ -14,7 +14,7 @@ import {z} from 'genkit';
 const AssetSchema = z.object({
   assetId: z.string(),
   address: z.string(),
-  yearInstalled: z.number(),
+  yearInstalled: z.union([z.number(), z.string()]),
   material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
   setbackFromWaterSource: z.number(),
   setbackFromHouse: z.number(),
@@ -69,7 +69,7 @@ const GenerateCostsInputSchema = z.object({
 export type GenerateCostsInput = z.infer<typeof GenerateCostsInputSchema>;
 
 const CostBreakdownItemSchema = z.object({
-    repairType: z.string().describe("The specific repair type from the price list."),
+    repairType: z.string().describe("The specific repair type from the provided price list."),
     unitPrice: z.number().describe("The unit price for this repair type."),
 });
 
@@ -110,7 +110,7 @@ You must provide a response for every asset.
 **TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
 For each asset, provide an estimate of its remaining useful life.
 - First, check if the asset matches any of the user-defined rules that specify a "remaining life". If a rule matches, you MUST use the life expectancy from that rule.
-- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type.
+- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type. A 'Year Installed' of "Unknown" means it is likely very old.
 - You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "20-25 years".
 - The maximum value is "20-25 years".
 - If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule specifies otherwise.
