@@ -19,7 +19,20 @@ export async function recommendRepairsForAllAssets(
   try {
     const result = await recommendRepairsForAllAssetsFlow({
         ...data,
-        assets: data.assets.map(a => ({...a, yearInstalled: String(a.yearInstalled || 'Unknown')}))
+        assets: data.assets.map(a => ({
+            ...a,
+            yearInstalled: String(a.yearInstalled || 'Unknown'),
+            setbackFromWaterSource: String(a.setbackFromWaterSource),
+            setbackFromHouse: String(a.setbackFromHouse),
+            tankBuryDepth: String(a.tankBuryDepth),
+            openingSize: String(a.openingSize),
+            aboveGroundCollarHeight: String(a.aboveGroundCollarHeight),
+            siteCondition: String(a.siteCondition),
+            coverCondition: String(a.coverCondition),
+            collarCondition: String(a.collarCondition),
+            interiorCondition: String(a.interiorCondition),
+            overallCondition: String(a.overallCondition),
+        }))
     });
     return result;
   } catch (error) {
