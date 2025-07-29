@@ -184,9 +184,17 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
             })
         );
 
-        const batchResults = await Promise.all(batchPromises);
+        const batchResults = await Promise.allSettled(batchPromises);
 
-        const allRecommendations = batchResults.flatMap(result => result.output?.recommendations || []);
+        const allRecommendations = batchResults.flatMap(result => {
+            if (result.status === 'fulfilled' && result.value.output?.recommendations) {
+                return result.value.output.recommendations;
+            }
+            if (result.status === 'rejected') {
+                console.error("A batch failed to process:", result.reason);
+            }
+            return [];
+        });
 
         return { recommendations: allRecommendations };
     }
@@ -254,9 +262,17 @@ const generateCostsFlow = ai.defineFlow(
             })
         );
 
-        const batchResults = await Promise.all(batchPromises);
+        const batchResults = await Promise.allSettled(batchPromises);
 
-        const allCosts = batchResults.flatMap(result => result.output?.costs || []);
+        const allCosts = batchResults.flatMap(result => {
+             if (result.status === 'fulfilled' && result.value.output?.costs) {
+                return result.value.output.costs;
+            }
+            if (result.status === 'rejected') {
+                console.error("A batch failed to process:", result.reason);
+            }
+            return [];
+        });
 
         return { costs: allCosts };
     }
