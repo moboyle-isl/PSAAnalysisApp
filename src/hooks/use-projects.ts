@@ -81,16 +81,31 @@ export function useProjects() {
     }
   }, [projects, setActiveProjectId]);
 
-
   const updateCurrentProject = useCallback(() => {
-    if (!activeProjectState || !activeProjectId || activeProjectId === DEFAULT_PROJECT_ID) return;
+    if (!activeProjectState || !activeProjectId) return;
 
     setProjects(prevProjects => 
       prevProjects.map(p => 
-        p.id === activeProjectId ? { ...p, snapshot: activeProjectState } : p
+        p.id === activeProjectId ? { ...p, snapshot: JSON.parse(JSON.stringify(activeProjectState)) } : p
       )
     );
   }, [activeProjectId, activeProjectState, setProjects]);
+
+  // This effect now safely auto-saves changes to the project state.
+  useEffect(() => {
+    if (isReady && activeProjectState) {
+        // We directly call the setter from useLocalStorage to update the projects array.
+        // This avoids creating a dependency loop.
+        setProjects(prevProjects =>
+            prevProjects.map(p =>
+                p.id === activeProjectId
+                    ? { ...p, snapshot: activeProjectState }
+                    : p
+            )
+        );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectState, isReady]);
   
 
   const saveProject = useCallback((name: string) => {
