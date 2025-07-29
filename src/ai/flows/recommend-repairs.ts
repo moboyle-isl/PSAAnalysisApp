@@ -100,33 +100,31 @@ const allAssetsPrompt = ai.definePrompt({
   name: 'recommendRepairsForAllAssetsPrompt',
   input: { schema: RecommendRepairsAllAssetsInputSchema },
   output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks:
+  prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks in a specific order:
 1.  Estimate the remaining life.
 2.  Recommend repairs.
 
-You must provide a response for every asset.
+You must provide a response for every single asset.
 
 ---
 **TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
-For each asset, provide an estimate of its remaining useful life.
-- First, check if the asset matches any of the user-defined rules that specify a "remaining life". If a rule matches, you MUST use the life expectancy from that rule.
-- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type. A 'Year Installed' of "Unknown" means it is likely very old. A value of "N/A" for a condition score means the data is unavailable and should be ignored.
-- You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "20-25 years".
-- The maximum value is "20-25 years".
-- If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule specifies otherwise.
+Follow this logic precisely:
+1.  **Check for Rules First:** Examine the provided "User-Defined Rules". If an asset's data matches a rule that defines a "remaining life", you MUST use the life expectancy from that rule. This is the highest priority.
+2.  **Analyze if No Rule Applies:** If and only if no life-related rule matches the asset, you must then estimate the remaining life based on its 'Year Installed', all available condition scores, 'Material', and system type.
+    - A 'Year Installed' of "Unknown" means it is likely very old.
+    - A value of "N/A" for a condition score means the data is unavailable and should be ignored.
+    - If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule from step 1 specifies otherwise.
+3.  **Output Format:** Your final estimate MUST be one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", or "20-25 years".
 
 ---
 **TASK 2: RECOMMEND REPAIRS (FOR EACH ASSET)**
-For each asset, you will create a list of one or more repair recommendations. Follow this logic precisely:
-
-1.  **COMBINE RULE-BASED AND FIELD-NOTE-BASED ANALYSIS.**
-    - First, check if the asset's data matches any of the user-defined rules that specify a "recommendation". Collect all matching rule-based recommendations.
-    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems that require repairs. A score of "N/A" means the data is not available.
-    - Combine the findings from both sources to create a final list of recommendations. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
-
-2.  **HANDLE NO ACTION.**
-    - If no rules apply, 'Field Notes' are clear (e.g., "OK"), and condition scores are good (4 or 5), then no action is needed.
-    - In this case, the 'recommendation' array should contain only "No action needed".
+Follow this logic precisely:
+1.  **Gather All Recommendations:** You will create a final list of recommendations by combining two sources:
+    - **Rule-Based:** Check if the asset's data matches any of the "User-Defined Rules" that specify a "recommendation". Add all matching recommendations to a temporary list.
+    - **Analysis-Based:** Independently, analyze the 'Field Notes' and all available condition scores to identify any other problems that require repairs. Add any new findings to the temporary list. A score of "N/A" means the data is not available and should be ignored for that specific score.
+2.  **Finalize the List:**
+    - Combine the recommendations from both sources. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
+    - If, after checking both rules and analysis, there are no identified issues, the final 'recommendation' array should contain only the string "No action needed". Otherwise, it should contain the combined list of required actions.
 
 ---
 **User-Defined Rules (Used for Tasks 1 & 2):**
