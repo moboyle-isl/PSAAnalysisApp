@@ -443,7 +443,9 @@ export function DashboardClient() {
               ...asset,
               recommendation: rec.recommendation,
               estimatedRemainingLife: rec.estimatedRemainingLife,
+              userRecommendation: asset.userRecommendation, // Preserve existing user recommendation
               aiEstimatedCost: undefined,
+              userVerifiedCost: undefined,
               needsPrice: false,
               costBreakdown: [],
             };
@@ -647,6 +649,9 @@ export function DashboardClient() {
 
     const processData = (data: any[]) => {
       try {
+        if (!data || data.length === 0) {
+            throw new Error("The file is empty or formatted incorrectly.");
+        }
         const headers = Object.keys(data[0] || {});
         const missingHeaders = REQUIRED_UPLOAD_COLUMNS.filter(h => !headers.includes(h));
 
@@ -654,12 +659,16 @@ export function DashboardClient() {
           throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
         }
 
-        const newAssets = data.map((row: any): AssetWithRecommendation => {
+        const newAssets = data.map((row: any, index: number): AssetWithRecommendation => {
+          if (!row.assetId) {
+            console.warn(`Skipping row ${index + 2} due to missing assetId.`);
+            return null;
+          }
           // Basic validation and type conversion
           const asset: Asset = {
-              assetId: String(row.assetId || ''),
-              address: String(row.address || ''),
-              yearInstalled: Number(row.yearInstalled || 0),
+              assetId: String(row.assetId),
+              address: String(row.address ?? ''),
+              yearInstalled: Number(row.yearInstalled || new Date().getFullYear()),
               material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
               setbackFromWaterSource: Number(row.setbackFromWaterSource || 0),
               setbackFromHouse: Number(row.setbackFromHouse || 0),
@@ -668,13 +677,13 @@ export function DashboardClient() {
               aboveGroundCollarHeight: Number(row.aboveGroundCollarHeight || 0),
               septicSystemType: ['Cistern', 'Septic Tank'].includes(row.septicSystemType) ? row.septicSystemType : 'Septic Tank',
               assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
-              siteCondition: Number(row.siteCondition || 0),
-              coverCondition: Number(row.coverCondition || 0),
-              collarCondition: Number(row.collarCondition || 0),
-              interiorCondition: Number(row.interiorCondition || 0),
-              overallCondition: Number(row.overallCondition || 0),
-              abandoned: ['Yes', 'No'].includes(row.abandoned) ? row.abandoned : 'No',
-              fieldNotes: String(row.fieldNotes || ''),
+              siteCondition: Number(row.siteCondition || 5),
+              coverCondition: Number(row.coverCondition || 5),
+              collarCondition: Number(row.collarCondition || 5),
+              interiorCondition: Number(row.interiorCondition || 5),
+              overallCondition: Number(row.overallCondition || 5),
+              abandoned: String(row.abandoned).trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
+              fieldNotes: String(row.fieldNotes ?? ''),
           };
 
            return {
@@ -687,7 +696,11 @@ export function DashboardClient() {
               estimatedRemainingLife: undefined,
               costBreakdown: [],
           };
-        });
+        }).filter((asset): asset is AssetWithRecommendation => asset !== null);
+
+        if (newAssets.length === 0) {
+            throw new Error("No valid assets could be loaded from the file. Please check asset IDs.");
+        }
 
         setAssets(newAssets);
         toast({
@@ -726,7 +739,7 @@ export function DashboardClient() {
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
             processData(jsonData);
           } catch (error: any) {
             console.error("Excel Reading Error:", error);
@@ -1592,8 +1605,3 @@ export function DashboardClient() {
     </div>
   );
 }
-
-    
-
-    
-
