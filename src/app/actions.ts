@@ -17,7 +17,10 @@ export async function recommendRepairsForAllAssets(
   data: RecommendRepairsAllAssetsInput
 ): Promise<RecommendRepairsAllAssetsOutput> {
   try {
-    const result = await recommendRepairsForAllAssetsFlow(data);
+    const result = await recommendRepairsForAllAssetsFlow({
+        ...data,
+        assets: data.assets.map(a => ({...a, yearInstalled: String(a.yearInstalled || 'Unknown')}))
+    });
     return result;
   } catch (error) {
     console.error(error);

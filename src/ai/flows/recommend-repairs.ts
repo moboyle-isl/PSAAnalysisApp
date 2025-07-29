@@ -14,7 +14,7 @@ import {z} from 'zod';
 const AssetSchema = z.object({
   assetId: z.string(),
   address: z.string(),
-  yearInstalled: z.union([z.number(), z.string()]),
+  yearInstalled: z.string(),
   material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
   setbackFromWaterSource: z.union([z.number(), z.string()]),
   setbackFromHouse: z.union([z.number(), z.string()]),
