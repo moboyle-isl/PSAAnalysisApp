@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Asset, RepairPrice } from '@/lib/data';
 import {
   Table,
@@ -75,6 +75,7 @@ import { ASSET_COLUMNS, OPERATORS } from '@/app/rules/rules-client';
 import { PageHeader } from '@/components/page-header';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { useProjects } from '@/hooks/use-projects';
+import Papa from 'papaparse';
 
 type CostBreakdownItem = {
   repairType: string;
@@ -232,6 +233,7 @@ export function DashboardClient() {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -431,10 +433,8 @@ export function DashboardClient() {
             return {
               ...asset,
               recommendation: rec.recommendation,
-              userRecommendation: asset.userRecommendation,
               estimatedRemainingLife: rec.estimatedRemainingLife,
               aiEstimatedCost: undefined,
-              userVerifiedCost: asset.userVerifiedCost,
               needsPrice: false,
               costBreakdown: [],
             };
@@ -632,6 +632,95 @@ export function DashboardClient() {
     );
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        try {
+          const requiredHeaders: (keyof Asset)[] = [
+            'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
+            'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
+            'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
+            'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
+          ];
+          
+          const headers = results.meta.fields || [];
+          const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+          if (missingHeaders.length > 0) {
+            throw new Error(`Missing required columns in CSV: ${missingHeaders.join(', ')}`);
+          }
+
+          const newAssets = results.data.map((row: any): AssetWithRecommendation => {
+            // Basic validation and type conversion
+            const asset: Asset = {
+                assetId: String(row.assetId || ''),
+                address: String(row.address || ''),
+                yearInstalled: Number(row.yearInstalled || 0),
+                material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
+                setbackFromWaterSource: Number(row.setbackFromWaterSource || 0),
+                setbackFromHouse: Number(row.setbackFromHouse || 0),
+                tankBuryDepth: Number(row.tankBuryDepth || 0),
+                openingSize: Number(row.openingSize || 0),
+                aboveGroundCollarHeight: Number(row.aboveGroundCollarHeight || 0),
+                septicSystemType: ['Cistern', 'Septic Tank'].includes(row.septicSystemType) ? row.septicSystemType : 'Septic Tank',
+                assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
+                siteCondition: Number(row.siteCondition || 0),
+                coverCondition: Number(row.coverCondition || 0),
+                collarCondition: Number(row.collarCondition || 0),
+                interiorCondition: Number(row.interiorCondition || 0),
+                overallCondition: Number(row.overallCondition || 0),
+                abandoned: ['Yes', 'No'].includes(row.abandoned) ? row.abandoned : 'No',
+                fieldNotes: String(row.fieldNotes || ''),
+            };
+
+             return {
+                ...asset,
+                recommendation: undefined,
+                userRecommendation: undefined,
+                aiEstimatedCost: undefined,
+                userVerifiedCost: undefined,
+                needsPrice: false,
+                estimatedRemainingLife: undefined,
+                costBreakdown: [],
+            };
+          });
+
+          setAssets(newAssets);
+          toast({
+            title: "Upload Successful",
+            description: `${newAssets.length} assets have been loaded from the CSV file.`,
+          });
+        } catch (error: any) {
+          console.error("CSV Parsing Error:", error);
+          toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: error.message || "Could not parse the CSV file. Please check the format and try again.",
+          });
+        }
+      },
+      error: (error: any) => {
+        console.error("CSV Reading Error:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "An error occurred while reading the file.",
+        });
+      },
+    });
+    
+    // Reset file input to allow re-uploading the same file
+    if (event.target) {
+        event.target.value = '';
+    }
+  };
+
+
   const renderCellContent = (asset: AssetWithRecommendation, key: Column['key']) => {
     const cellId = `${asset.assetId}-${key}`;
     const isEditing = editingCell === cellId;
@@ -776,18 +865,18 @@ export function DashboardClient() {
         return (
           <Input
             autoFocus
-            type={typeof value === 'number' || key === 'userVerifiedCost' ? 'number' : 'text'}
+            type={key === 'userVerifiedCost' || typeof value === 'number' ? 'number' : 'text'}
             defaultValue={value as string | number}
             max={isConditionField ? 5 : undefined}
             min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
-              const val = (typeof value === 'number' || key === 'userVerifiedCost') ? Number(e.target.value) : e.target.value;
+              const val = (key === 'userVerifiedCost' || typeof value === 'number') ? parseFloat(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const val = (typeof value === 'number' || key === 'userVerifiedCost') ? Number(e.currentTarget.value) : e.currentTarget.value;
+                const val = (key === 'userVerifiedCost' || typeof value === 'number') ? parseFloat(e.currentTarget.value) : e.currentTarget.value;
                 handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
                 setEditingCell(null);
               }
@@ -847,7 +936,7 @@ export function DashboardClient() {
 
     if (key === 'userVerifiedCost') {
       const cost = value as number;
-      if (cost === undefined || cost === null) {
+      if (cost === undefined || cost === null || isNaN(cost)) {
         return <span className="text-muted-foreground">-</span>;
       }
       return <span>${cost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
@@ -938,9 +1027,16 @@ export function DashboardClient() {
               newProjectName={newProjectName}
               setNewProjectName={setNewProjectName}
             />
-            <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Upload Data
+             <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              className="hidden"
+              accept=".csv"
+            />
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Data
             </Button>
             <Button>
             <Download className="mr-2 h-4 w-4" />
