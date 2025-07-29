@@ -171,8 +171,24 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         outputSchema: RecommendRepairsAllAssetsOutputSchema,
     },
     async (input) => {
-        const { output } = await allAssetsPrompt(input);
-        return output!;
+        const BATCH_SIZE = 50;
+        const batches = [];
+        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
+            batches.push(input.assets.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = batches.map(batch => 
+            allAssetsPrompt({
+                assets: batch,
+                rules: input.rules,
+            })
+        );
+
+        const batchResults = await Promise.all(batchPromises);
+
+        const allRecommendations = batchResults.flatMap(result => result.output?.recommendations || []);
+
+        return { recommendations: allRecommendations };
     }
 );
 
