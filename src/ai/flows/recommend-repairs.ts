@@ -28,6 +28,7 @@ const AssetSchema = z.object({
   collarCondition: z.number(),
   interiorCondition: z.number(),
   overallCondition: z.number(),
+  abandoned: z.enum(['Yes', 'No']),
   fieldNotes: z.string().optional(),
 });
 
@@ -154,6 +155,7 @@ No user-defined rules provided.
   - Collar Condition: {{collarCondition}}/5
   - Interior Condition: {{interiorCondition}}/5
   - Overall Condition: {{overallCondition}}/5
+  - Abandoned / Not in Use?: {{abandoned}}
   - Field Notes: "{{fieldNotes}}"
 {{/each}}
 
@@ -226,4 +228,5 @@ const generateCostsFlow = ai.defineFlow(
         return output!;
     }
 );
+
 

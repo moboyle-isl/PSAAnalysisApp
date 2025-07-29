@@ -70,6 +70,7 @@ export const ASSET_COLUMNS = [
     { key: 'collarCondition', label: 'Collar Condition', type: 'number' },
     { key: 'interiorCondition', label: 'Interior Condition', type: 'number' },
     { key: 'overallCondition', label: 'Overall Condition', type: 'number' },
+    { key: 'abandoned', label: 'Abandoned / Not in Use?', type: 'enum', options: ['Yes', 'No'] },
     { key: 'fieldNotes', label: 'Field Notes', type: 'string' },
 ];
 

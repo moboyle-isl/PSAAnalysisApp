@@ -82,6 +82,7 @@ type CostBreakdownItem = {
 };
 
 type AssetWithRecommendation = Asset & { 
+  abandoned: 'Yes' | 'No';
   recommendation?: string[];
   userRecommendation?: string[];
   aiEstimatedCost?: number;
@@ -116,6 +117,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'collarCondition', label: 'Collar Condition', type: 'number', width: '120px' },
     { key: 'interiorCondition', label: 'Interior Condition', type: 'number', width: '120px' },
     { key: 'overallCondition', label: 'Overall Condition', type: 'number', width: '120px' },
+    { key: 'abandoned', label: 'Abandoned / Not in Use?', type: 'enum', options: ['Yes', 'No'], width: '150px' },
     { key: 'fieldNotes', label: 'Field Notes', type: 'string', width: '300px' },
     { key: 'estimatedRemainingLife', label: 'Est. Remaining Life', type: 'string', width: '150px' },
     { key: 'recommendation', label: 'AI Recommendation', type: 'string', width: '300px' },
@@ -167,6 +169,7 @@ const newAssetSchema = z.object({
   collarCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   interiorCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   overallCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
+  abandoned: z.enum(['Yes', 'No']),
   fieldNotes: z.string().optional(),
 }).refine(data => {
     if (data.septicSystemType === 'Cistern' && data.assetSubType !== 'Cistern') {
@@ -195,6 +198,7 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   collarCondition: true,
   interiorCondition: true,
   overallCondition: true,
+  abandoned: true,
   fieldNotes: true,
   estimatedRemainingLife: true,
   recommendation: true,
@@ -247,6 +251,7 @@ export function DashboardClient() {
       collarCondition: 5,
       interiorCondition: 5,
       overallCondition: 5,
+      abandoned: 'No',
       fieldNotes: '',
     },
   });
@@ -422,15 +427,17 @@ export function DashboardClient() {
       setAssets((prevAssets) =>
         prevAssets.map((asset) => {
           const rec = recommendationsMap.get(asset.assetId);
-          return rec ? {
-            ...asset,
-            recommendation: rec.recommendation,
-            estimatedRemainingLife: rec.estimatedRemainingLife,
-            aiEstimatedCost: undefined, // Clear old costs
-            needsPrice: false,
-            costBreakdown: [],
-            userRecommendation: asset.userRecommendation, // This line was removed
-          } : asset;
+          if (rec) {
+            return {
+              ...asset,
+              recommendation: rec.recommendation,
+              estimatedRemainingLife: rec.estimatedRemainingLife,
+              aiEstimatedCost: undefined,
+              needsPrice: false,
+              costBreakdown: [],
+            };
+          }
+          return asset;
         })
       );
 
@@ -660,6 +667,25 @@ export function DashboardClient() {
     const value = asset[key as keyof AssetWithRecommendation];
 
     if (isEditing) {
+      if (key === 'abandoned') {
+        return (
+          <Select
+            defaultValue={value as string}
+            onValueChange={(newValue) => {
+              handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, newValue);
+              setEditingCell(null);
+            }}
+          >
+            <SelectTrigger className="h-8">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Yes">Yes</SelectItem>
+              <SelectItem value="No">No</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      }
       if (key === 'septicSystemType') {
         return (
           <Select
@@ -1160,6 +1186,20 @@ export function DashboardClient() {
                             <FormItem>
                                 <FormLabel>Overall Condition (1-5)</FormLabel>
                                 <FormControl><Input type="number" min="1" max="5" {...field} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+
+                         <FormField control={form.control} name="abandoned" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Abandoned / Not in Use?</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="Yes">Yes</SelectItem>
+                                        <SelectItem value="No">No</SelectItem>
+                                    </SelectContent>
+                                </Select>
                                 <FormMessage />
                             </FormItem>
                         )} />

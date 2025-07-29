@@ -16,6 +16,7 @@ export type Asset = {
   collarCondition: number;
   interiorCondition: number;
   overallCondition: number;
+  abandoned: 'Yes' | 'No';
   fieldNotes: string;
 };
 
@@ -44,6 +45,7 @@ export const initialAssets: Asset[] = [
     collarCondition: 5,
     interiorCondition: 5,
     overallCondition: 5,
+    abandoned: 'No',
     fieldNotes: 'System appears in good condition.',
   },
   {
@@ -63,6 +65,7 @@ export const initialAssets: Asset[] = [
     collarCondition: 4,
     interiorCondition: 3,
     overallCondition: 3,
+    abandoned: 'No',
     fieldNotes: 'Cover has minor cracks. Effluent levels normal.',
   },
   {
@@ -82,6 +85,7 @@ export const initialAssets: Asset[] = [
     collarCondition: 3,
     interiorCondition: 2,
     overallCondition: 2,
+    abandoned: 'No',
     fieldNotes: 'Lid is damaged. Visible roots near tank. Signs of past overflows.',
   },
   {
@@ -101,6 +105,7 @@ export const initialAssets: Asset[] = [
     collarCondition: 5,
     interiorCondition: 5,
     overallCondition: 5,
+    abandoned: 'No',
     fieldNotes: 'New installation. Excellent condition.',
   },
   {
@@ -120,6 +125,7 @@ export const initialAssets: Asset[] = [
     collarCondition: 4,
     interiorCondition: 4,
     overallCondition: 4,
+    abandoned: 'No',
     fieldNotes: 'No issues noted during last inspection.',
   },
 ];
