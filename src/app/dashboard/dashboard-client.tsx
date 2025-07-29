@@ -428,7 +428,6 @@ export function DashboardClient() {
             userRecommendation: rec.recommendation, // Populate user recs initially
             estimatedRemainingLife: rec.estimatedRemainingLife,
             aiEstimatedCost: undefined, // Clear old costs
-            userVerifiedCost: undefined, // Clear old costs
             needsPrice: false,
             costBreakdown: [],
           } : asset;
