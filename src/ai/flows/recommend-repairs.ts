@@ -228,6 +228,3 @@ const generateCostsFlow = ai.defineFlow(
         return output!;
     }
 );
-
-
-
