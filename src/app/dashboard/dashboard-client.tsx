@@ -210,6 +210,13 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   actions: true,
 };
 
+const REQUIRED_UPLOAD_COLUMNS: (keyof Asset)[] = [
+  'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
+  'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
+  'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
+  'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
+];
+
 
 export function DashboardClient() {
   const projectsHook = useProjects();
@@ -235,6 +242,7 @@ export function DashboardClient() {
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadInfoDialogOpen, setIsUploadInfoDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -639,15 +647,8 @@ export function DashboardClient() {
 
     const processData = (data: any[]) => {
       try {
-        const requiredHeaders: (keyof Asset)[] = [
-          'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
-          'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
-          'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
-          'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
-        ];
-
         const headers = Object.keys(data[0] || {});
-        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+        const missingHeaders = REQUIRED_UPLOAD_COLUMNS.filter(h => !headers.includes(h));
 
         if (missingHeaders.length > 0) {
           throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
@@ -1073,10 +1074,37 @@ export function DashboardClient() {
               className="hidden"
               accept=".csv,.xlsx"
             />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Data
-            </Button>
+            <Dialog open={isUploadInfoDialogOpen} onOpenChange={setIsUploadInfoDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Data
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Data Upload Instructions</DialogTitle>
+                  <DialogDescription>
+                    To ensure a successful upload, please make sure your CSV or Excel file contains the following columns with the exact names listed below. The order of columns does not matter.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                  <h4 className="font-semibold mb-2">Required Columns:</h4>
+                  <ul className="grid grid-cols-2 gap-x-8 gap-y-1 list-disc list-inside text-sm text-muted-foreground bg-muted p-4 rounded-md">
+                    {REQUIRED_UPLOAD_COLUMNS.map(col => <li key={col}><code className="font-mono">{col}</code></li>)}
+                  </ul>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsUploadInfoDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={() => {
+                    fileInputRef.current?.click();
+                    setIsUploadInfoDialogOpen(false);
+                  }}>
+                    Proceed to Upload
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Button>
             <Download className="mr-2 h-4 w-4" />
             Export Data
@@ -1568,3 +1596,4 @@ export function DashboardClient() {
     
 
     
+
