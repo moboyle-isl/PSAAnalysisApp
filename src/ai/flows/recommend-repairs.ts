@@ -150,11 +150,11 @@ No user-defined rules provided.
   - Collar Height (m): {{aboveGroundCollarHeight}}
   - System Type: {{systemType}}
   - Sub-Type: {{assetSubType}}
-  - Site Condition: {{siteCondition}}/5
-  - Cover Condition: {{coverCondition}}/5
-  - Collar Condition: {{collarCondition}}/5
-  - Interior Condition: {{interiorCondition}}/5
-  - Overall Condition: {{overallCondition}}/5
+  - Site Condition: {{siteCondition}}{{#if (Number.isInteger siteCondition)}}/5{{/if}}
+  - Cover Condition: {{coverCondition}}{{#if (Number.isInteger coverCondition)}}/5{{/if}}
+  - Collar Condition: {{collarCondition}}{{#if (Number.isInteger collarCondition)}}/5{{/if}}
+  - Interior Condition: {{interiorCondition}}{{#if (Number.isInteger interiorCondition)}}/5{{/if}}
+  - Overall Condition: {{overallCondition}}{{#if (Number.isInteger overallCondition)}}/5{{/if}}
   - Abandoned / Not in Use?: {{abandoned}}
   - Field Notes: "{{fieldNotes}}"
 {{/each}}
