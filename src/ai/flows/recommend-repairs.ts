@@ -186,13 +186,13 @@ For each asset provided, you will perform the following steps:
     - Create an empty 'costBreakdown' list for the asset.
     - Read the user's final recommendation list from the 'userRecommendation' field.
     - For each item in the 'userRecommendation' list:
-        - **Identify Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that is an EXACT, case-insensitive match to the user's recommendation.
+        - **Identify Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that is an EXACT, case-insensitive match to the user's recommendation item.
             - If an exact match is found in the price list, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
 	        - If you DO NOT find an exact match, you will still account for this repair later, but do not add it to the cost breakdown. Do NOT use synonyms or infer matches.
 	    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None".
 
 2.  **FINALIZE REPAIR LIST AND COST.**
-    - The final 'recommendedRepairType' list should contain ALL items from the user's recommendation list, regardless of whether they were found in the price list.
+    - The final 'recommendedRepairType' list should contain ALL items from the 'userRecommendation' list, regardless of whether they were found in the price list.
     - Calculate the total 'estimatedCost' by summing the 'unitPrice' for every item in the 'costBreakdown' list you built. The cost should only include items with a price.
     - Set 'needsPrice' to true if any item from the 'userRecommendation' list was not found in the 'Available Repairs and Prices' list. Otherwise, set it to false.
     - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None", 'costBreakdown' should be an empty array, 'estimatedCost' should be 0, and 'needsPrice' should be false.
@@ -226,3 +226,4 @@ const generateCostsFlow = ai.defineFlow(
         return output!;
     }
 );
+
