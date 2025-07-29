@@ -76,6 +76,7 @@ import { PageHeader } from '@/components/page-header';
 import { ProjectSwitcher } from '@/components/project-switcher';
 import { useProjects } from '@/hooks/use-projects';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 type CostBreakdownItem = {
   repairType: string;
@@ -636,83 +637,121 @@ export function DashboardClient() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        try {
-          const requiredHeaders: (keyof Asset)[] = [
-            'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
-            'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
-            'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
-            'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
-          ];
-          
-          const headers = results.meta.fields || [];
-          const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+    const processData = (data: any[]) => {
+      try {
+        const requiredHeaders: (keyof Asset)[] = [
+          'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
+          'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
+          'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
+          'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
+        ];
 
-          if (missingHeaders.length > 0) {
-            throw new Error(`Missing required columns in CSV: ${missingHeaders.join(', ')}`);
-          }
+        const headers = Object.keys(data[0] || {});
+        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
 
-          const newAssets = results.data.map((row: any): AssetWithRecommendation => {
-            // Basic validation and type conversion
-            const asset: Asset = {
-                assetId: String(row.assetId || ''),
-                address: String(row.address || ''),
-                yearInstalled: Number(row.yearInstalled || 0),
-                material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
-                setbackFromWaterSource: Number(row.setbackFromWaterSource || 0),
-                setbackFromHouse: Number(row.setbackFromHouse || 0),
-                tankBuryDepth: Number(row.tankBuryDepth || 0),
-                openingSize: Number(row.openingSize || 0),
-                aboveGroundCollarHeight: Number(row.aboveGroundCollarHeight || 0),
-                septicSystemType: ['Cistern', 'Septic Tank'].includes(row.septicSystemType) ? row.septicSystemType : 'Septic Tank',
-                assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
-                siteCondition: Number(row.siteCondition || 0),
-                coverCondition: Number(row.coverCondition || 0),
-                collarCondition: Number(row.collarCondition || 0),
-                interiorCondition: Number(row.interiorCondition || 0),
-                overallCondition: Number(row.overallCondition || 0),
-                abandoned: ['Yes', 'No'].includes(row.abandoned) ? row.abandoned : 'No',
-                fieldNotes: String(row.fieldNotes || ''),
-            };
-
-             return {
-                ...asset,
-                recommendation: undefined,
-                userRecommendation: undefined,
-                aiEstimatedCost: undefined,
-                userVerifiedCost: undefined,
-                needsPrice: false,
-                estimatedRemainingLife: undefined,
-                costBreakdown: [],
-            };
-          });
-
-          setAssets(newAssets);
-          toast({
-            title: "Upload Successful",
-            description: `${newAssets.length} assets have been loaded from the CSV file.`,
-          });
-        } catch (error: any) {
-          console.error("CSV Parsing Error:", error);
-          toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: error.message || "Could not parse the CSV file. Please check the format and try again.",
-          });
+        if (missingHeaders.length > 0) {
+          throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
         }
-      },
-      error: (error: any) => {
-        console.error("CSV Reading Error:", error);
+
+        const newAssets = data.map((row: any): AssetWithRecommendation => {
+          // Basic validation and type conversion
+          const asset: Asset = {
+              assetId: String(row.assetId || ''),
+              address: String(row.address || ''),
+              yearInstalled: Number(row.yearInstalled || 0),
+              material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
+              setbackFromWaterSource: Number(row.setbackFromWaterSource || 0),
+              setbackFromHouse: Number(row.setbackFromHouse || 0),
+              tankBuryDepth: Number(row.tankBuryDepth || 0),
+              openingSize: Number(row.openingSize || 0),
+              aboveGroundCollarHeight: Number(row.aboveGroundCollarHeight || 0),
+              septicSystemType: ['Cistern', 'Septic Tank'].includes(row.septicSystemType) ? row.septicSystemType : 'Septic Tank',
+              assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
+              siteCondition: Number(row.siteCondition || 0),
+              coverCondition: Number(row.coverCondition || 0),
+              collarCondition: Number(row.collarCondition || 0),
+              interiorCondition: Number(row.interiorCondition || 0),
+              overallCondition: Number(row.overallCondition || 0),
+              abandoned: ['Yes', 'No'].includes(row.abandoned) ? row.abandoned : 'No',
+              fieldNotes: String(row.fieldNotes || ''),
+          };
+
+           return {
+              ...asset,
+              recommendation: undefined,
+              userRecommendation: undefined,
+              aiEstimatedCost: undefined,
+              userVerifiedCost: undefined,
+              needsPrice: false,
+              estimatedRemainingLife: undefined,
+              costBreakdown: [],
+          };
+        });
+
+        setAssets(newAssets);
+        toast({
+          title: "Upload Successful",
+          description: `${newAssets.length} assets have been loaded from the file.`,
+        });
+      } catch (error: any) {
+        console.error("Data Processing Error:", error);
         toast({
           variant: "destructive",
           title: "Upload Failed",
-          description: "An error occurred while reading the file.",
+          description: error.message || "Could not process the file. Please check the format and try again.",
         });
-      },
-    });
+      }
+    }
+
+    if (file.name.endsWith('.csv')) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => processData(results.data),
+        error: (error: any) => {
+          console.error("CSV Reading Error:", error);
+          toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: "An error occurred while reading the CSV file.",
+          });
+        },
+      });
+    } else if (file.name.endsWith('.xlsx')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = e.target?.result;
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            processData(jsonData);
+          } catch (error: any) {
+            console.error("Excel Reading Error:", error);
+            toast({
+              variant: "destructive",
+              title: "Upload Failed",
+              description: "An error occurred while reading the Excel file.",
+            });
+          }
+        };
+        reader.onerror = (error) => {
+            console.error("File Reader Error:", error);
+            toast({
+              variant: "destructive",
+              title: "Upload Failed",
+              description: "Could not read the file.",
+            });
+        };
+        reader.readAsArrayBuffer(file);
+    } else {
+       toast({
+          variant: "destructive",
+          title: "Unsupported File Type",
+          description: "Please upload a .csv or .xlsx file.",
+        });
+    }
     
     // Reset file input to allow re-uploading the same file
     if (event.target) {
@@ -1032,7 +1071,7 @@ export function DashboardClient() {
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="hidden"
-              accept=".csv"
+              accept=".csv,.xlsx"
             />
             <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="mr-2 h-4 w-4" />
