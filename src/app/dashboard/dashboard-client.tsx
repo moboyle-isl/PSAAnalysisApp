@@ -425,11 +425,11 @@ export function DashboardClient() {
           return rec ? {
             ...asset,
             recommendation: rec.recommendation,
-            userRecommendation: undefined, // Do NOT auto-populate user recommendation
             estimatedRemainingLife: rec.estimatedRemainingLife,
             aiEstimatedCost: undefined, // Clear old costs
             needsPrice: false,
             costBreakdown: [],
+            userRecommendation: asset.userRecommendation, // This line was removed
           } : asset;
         })
       );
@@ -614,7 +614,7 @@ export function DashboardClient() {
             updatedAsset.assetSubType = value === 'Cistern' ? 'Cistern' : 'Pump Out';
           }
           if (key === 'userVerifiedCost' && typeof value === 'string') {
-            updatedAsset.userVerifiedCost = parseFloat(value) || 0;
+            updatedAsset.userVerifiedCost = parseFloat(value) || undefined;
           }
           return updatedAsset;
         }
@@ -748,18 +748,18 @@ export function DashboardClient() {
         return (
           <Input
             autoFocus
-            type={typeof value === 'number' ? 'number' : 'text'}
+            type={typeof value === 'number' || key === 'userVerifiedCost' ? 'number' : 'text'}
             defaultValue={value as string | number}
             max={isConditionField ? 5 : undefined}
             min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
-              const val = typeof value === 'number' ? Number(e.target.value) : e.target.value;
+              const val = (typeof value === 'number' || key === 'userVerifiedCost') ? Number(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const val = typeof value === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value;
+                const val = (typeof value === 'number' || key === 'userVerifiedCost') ? Number(e.currentTarget.value) : e.currentTarget.value;
                 handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
                 setEditingCell(null);
               }
@@ -773,7 +773,7 @@ export function DashboardClient() {
       const cost = value as number;
       const breakdown = asset.costBreakdown || [];
 
-      if (cost === undefined || cost === null || cost <= 0) {
+      if (cost === undefined || cost === null) {
         return <span>-</span>
       }
       
@@ -1387,5 +1387,7 @@ export function DashboardClient() {
     </div>
   );
 }
+
+    
 
     
