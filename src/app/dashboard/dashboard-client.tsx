@@ -107,7 +107,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'address', label: 'Address', type: 'string', width: '300px' },
     { key: 'yearInstalled', label: 'Year Installed', type: 'number', width: '120px' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'], width: '120px' },
-    { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'], width: '120px' },
+    { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'], width: '120px' },
     { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'], width: '120px' },
     { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number', width: '120px' },
     { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number', width: '120px' },
@@ -164,7 +164,7 @@ const newAssetSchema = z.object({
   tankBuryDepth: z.coerce.number().min(0),
   openingSize: z.coerce.number().min(0),
   aboveGroundCollarHeight: z.coerce.number().min(0),
-  septicSystemType: z.enum(['Cistern', 'Septic Tank']),
+  systemType: z.enum(['Cistern', 'Septic Tank']),
   assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
   siteCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   coverCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
@@ -174,7 +174,7 @@ const newAssetSchema = z.object({
   abandoned: z.enum(['Yes', 'No']),
   fieldNotes: z.string().optional(),
 }).refine(data => {
-    if (data.septicSystemType === 'Cistern' && data.assetSubType !== 'Cistern') {
+    if (data.systemType === 'Cistern' && data.assetSubType !== 'Cistern') {
         return false;
     }
     return true;
@@ -188,7 +188,7 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
   address: true,
   yearInstalled: true,
   material: true,
-  septicSystemType: true,
+  systemType: true,
   assetSubType: true,
   setbackFromWaterSource: true,
   setbackFromHouse: true,
@@ -213,7 +213,7 @@ const DEFAULT_COLUMN_VISIBILITY: Record<string, boolean> = {
 const REQUIRED_UPLOAD_COLUMNS: (keyof Asset)[] = [
   'assetId', 'address', 'yearInstalled', 'material', 'setbackFromWaterSource',
   'setbackFromHouse', 'tankBuryDepth', 'openingSize', 'aboveGroundCollarHeight',
-  'septicSystemType', 'assetSubType', 'siteCondition', 'coverCondition',
+  'systemType', 'assetSubType', 'siteCondition', 'coverCondition',
   'collarCondition', 'interiorCondition', 'overallCondition', 'abandoned', 'fieldNotes'
 ];
 
@@ -255,7 +255,7 @@ export function DashboardClient() {
       tankBuryDepth: 0,
       openingSize: 0,
       aboveGroundCollarHeight: 0,
-      septicSystemType: 'Septic Tank',
+      systemType: 'Septic Tank',
       assetSubType: 'Pump Out',
       siteCondition: 5,
       coverCondition: 5,
@@ -267,13 +267,13 @@ export function DashboardClient() {
     },
   });
   
-  const septicSystemType = form.watch('septicSystemType');
+  const systemType = form.watch('systemType');
 
   useEffect(() => {
-    if (septicSystemType === 'Cistern') {
+    if (systemType === 'Cistern') {
       form.setValue('assetSubType', 'Cistern');
     }
-  }, [septicSystemType, form]);
+  }, [systemType, form]);
 
   useEffect(() => {
     setIsClient(true);
@@ -444,7 +444,6 @@ export function DashboardClient() {
               recommendation: rec.recommendation,
               estimatedRemainingLife: rec.estimatedRemainingLife,
               // Preserve existing user recommendation
-              userRecommendation: asset.userRecommendation,
               aiEstimatedCost: undefined,
               userVerifiedCost: undefined,
               needsPrice: false,
@@ -527,7 +526,7 @@ export function DashboardClient() {
 
 
   const handleAddNewAsset = (values: z.infer<typeof newAssetSchema>) => {
-    const assetTypePrefix = values.septicSystemType === 'Cistern' ? 'C' : 'S';
+    const assetTypePrefix = values.systemType === 'Cistern' ? 'C' : 'S';
     
     const existingIds = assets
       .filter(asset => asset.assetId.startsWith(assetTypePrefix + '-'))
@@ -631,7 +630,7 @@ export function DashboardClient() {
         if (asset.assetId === assetId) {
           const updatedAsset = { ...asset, [key]: value };
           // If the system type changes, reset the sub-type
-          if (key === 'septicSystemType') {
+          if (key === 'systemType') {
             updatedAsset.assetSubType = value === 'Cistern' ? 'Cistern' : 'Pump Out';
           }
           if (key === 'userVerifiedCost' && typeof value === 'string') {
@@ -676,14 +675,14 @@ export function DashboardClient() {
               tankBuryDepth: parseFloat(Number(row.tankBuryDepth || 0).toFixed(2)),
               openingSize: parseFloat(Number(row.openingSize || 0).toFixed(2)),
               aboveGroundCollarHeight: parseFloat(Number(row.aboveGroundCollarHeight || 0).toFixed(2)),
-              septicSystemType: ['Cistern', 'Septic Tank'].includes(row.septicSystemType) ? row.septicSystemType : 'Septic Tank',
+              systemType: ['Cistern', 'Septic Tank'].includes(row.systemType) ? row.systemType : 'Septic Tank',
               assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
               siteCondition: Number(row.siteCondition || 5),
               coverCondition: Number(row.coverCondition || 5),
               collarCondition: Number(row.collarCondition || 5),
               interiorCondition: Number(row.interiorCondition || 5),
               overallCondition: Number(row.overallCondition || 5),
-              abandoned: String(row.abandoned).trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
+              abandoned: String(row.abandoned ?? '').trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
               fieldNotes: String(row.fieldNotes ?? ''),
           };
 
@@ -831,7 +830,7 @@ export function DashboardClient() {
           </Select>
         );
       }
-      if (key === 'septicSystemType') {
+      if (key === 'systemType') {
         return (
           <Select
             defaultValue={value as string}
@@ -850,7 +849,7 @@ export function DashboardClient() {
           </Select>
         );
       }
-      if (key === 'assetSubType' && asset.septicSystemType === 'Septic Tank') {
+      if (key === 'assetSubType' && asset.systemType === 'Septic Tank') {
         return (
           <Select
             defaultValue={value as string}
@@ -912,7 +911,7 @@ export function DashboardClient() {
           />
         );
       }
-       if (asset.septicSystemType === 'Cistern' && key === 'assetSubType') {
+       if (asset.systemType === 'Cistern' && key === 'assetSubType') {
         // Not editable if it's a Cistern
       } else {
         const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
@@ -1015,7 +1014,7 @@ export function DashboardClient() {
   const isCellEditable = (asset: AssetWithRecommendation, key: Column['key']) => {
     if (key === 'assetId' || key === 'aiEstimatedCost' || key === 'actions' || key === 'recommendation') return false;
     // if (key === 'recommendation' || key === 'estimatedRemainingLife') return false;
-    if (key === 'assetSubType' && asset.septicSystemType === 'Cistern') return false;
+    if (key === 'assetSubType' && asset.systemType === 'Cistern') return false;
     return true;
   }
   
@@ -1253,7 +1252,7 @@ export function DashboardClient() {
                             </FormItem>
                         )} />
 
-                        <FormField control={form.control} name="septicSystemType" render={({ field }) => (
+                        <FormField control={form.control} name="systemType" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>System Type</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -1270,10 +1269,10 @@ export function DashboardClient() {
                         <FormField control={form.control} name="assetSubType" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Sub-Type</FormLabel>
-                                 <Select onValueChange={field.onChange} value={field.value} disabled={septicSystemType === 'Cistern'}>
+                                 <Select onValueChange={field.onChange} value={field.value} disabled={systemType === 'Cistern'}>
                                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                     <SelectContent>
-                                       {septicSystemType === 'Cistern' ? (
+                                       {systemType === 'Cistern' ? (
                                             <SelectItem value="Cistern">Cistern</SelectItem>
                                        ) : (
                                            <>

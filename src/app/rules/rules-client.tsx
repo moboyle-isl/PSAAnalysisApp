@@ -58,7 +58,7 @@ export type Rule = {
 export const ASSET_COLUMNS = [
     { key: 'yearInstalled', label: 'Year Installed', type: 'number' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
-    { key: 'septicSystemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
+    { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
     { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'] },
     { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number' },
     { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number' },

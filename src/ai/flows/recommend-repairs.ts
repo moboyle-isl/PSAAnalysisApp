@@ -21,7 +21,7 @@ const AssetSchema = z.object({
   tankBuryDepth: z.number(),
   openingSize: z.number(),
   aboveGroundCollarHeight: z.number(),
-  septicSystemType: z.enum(['Cistern', 'Septic Tank']),
+  systemType: z.enum(['Cistern', 'Septic Tank']),
   assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
   siteCondition: z.number(),
   coverCondition: z.number(),
@@ -148,7 +148,7 @@ No user-defined rules provided.
   - Bury Depth (m): {{tankBuryDepth}}
   - Opening Size (m): {{openingSize}}
   - Collar Height (m): {{aboveGroundCollarHeight}}
-  - System Type: {{septicSystemType}}
+  - System Type: {{systemType}}
   - Sub-Type: {{assetSubType}}
   - Site Condition: {{siteCondition}}/5
   - Cover Condition: {{coverCondition}}/5
