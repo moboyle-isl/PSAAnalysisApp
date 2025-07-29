@@ -241,7 +241,23 @@ const generateCostsFlow = ai.defineFlow(
         outputSchema: GenerateCostsOutputSchema,
     },
     async (input) => {
-        const { output } = await generateCostsPrompt(input);
-        return output!;
+        const BATCH_SIZE = 50;
+        const batches = [];
+        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
+            batches.push(input.assets.slice(i, i + BATCH_SIZE));
+        }
+
+        const batchPromises = batches.map(batch => 
+            generateCostsPrompt({
+                assets: batch,
+                repairPrices: input.repairPrices,
+            })
+        );
+
+        const batchResults = await Promise.all(batchPromises);
+
+        const allCosts = batchResults.flatMap(result => result.output?.costs || []);
+
+        return { costs: allCosts };
     }
 );
