@@ -83,9 +83,19 @@ type CostBreakdownItem = {
   unitPrice: number;
 };
 
-type AssetWithRecommendation = Omit<Asset, 'yearInstalled'> & { 
+type AssetWithRecommendation = Omit<Asset, 'yearInstalled' | 'setbackFromWaterSource' | 'setbackFromHouse' | 'tankBuryDepth' | 'openingSize' | 'aboveGroundCollarHeight' | 'siteCondition' | 'coverCondition' | 'collarCondition' | 'interiorCondition' | 'overallCondition'> & { 
   yearInstalled: number | string;
   abandoned: 'Yes' | 'No';
+  setbackFromWaterSource: number | string;
+  setbackFromHouse: number | string;
+  tankBuryDepth: number | string;
+  openingSize: number | string;
+  aboveGroundCollarHeight: number | string;
+  siteCondition: number | string;
+  coverCondition: number | string;
+  collarCondition: number | string;
+  interiorCondition: number | string;
+  overallCondition: number | string;
   recommendation?: string[];
   userRecommendation?: string[];
   aiEstimatedCost?: number;
@@ -345,6 +355,7 @@ export function DashboardClient() {
               case 'number':
                 const numValue = Number(assetValue);
                 const filterNumValue = Number(filter.value);
+                if (isNaN(numValue)) return false;
                 if (filter.operator === 'equals' || filter.operator === 'eq') return numValue === filterNumValue;
                 if (filter.operator === 'not_equals' || filter.operator === 'neq') return numValue !== filterNumValue;
                 if (filter.operator === 'gt') return numValue > filterNumValue;
@@ -618,7 +629,7 @@ export function DashboardClient() {
   ) => {
     const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
 
-    if (isConditionField) {
+    if (isConditionField && typeof value === 'number') {
       const numValue = Number(value);
       if (numValue < 1 || numValue > 5) {
         toast({
@@ -668,6 +679,22 @@ export function DashboardClient() {
         if (missingHeaders.length > 0) {
           throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
         }
+        
+        const parseNumericalValue = (value: any): number | string => {
+            const num = Number(value);
+            if (value === null || value === undefined || String(value).trim() === '' || isNaN(num)) {
+                return "N/A";
+            }
+            return parseFloat(num.toFixed(2));
+        };
+        
+        const parseConditionValue = (value: any): number | string => {
+            const num = Number(value);
+            if (value === null || value === undefined || String(value).trim() === '' || isNaN(num)) {
+                return "N/A";
+            }
+            return num;
+        };
 
         const newAssets = data.map((row: any, index: number): AssetWithRecommendation | null => {
           if (!row.assetId) {
@@ -684,24 +711,23 @@ export function DashboardClient() {
              yearInstalled = isNaN(numYear) ? String(yearInstalledRaw) : numYear;
           }
           
-          // Basic validation and type conversion
-          const asset: Omit<Asset, 'yearInstalled'> & { yearInstalled: number | string } = {
+          const asset = {
               assetId: String(row.assetId),
               address: String(row.address ?? ''),
               yearInstalled: yearInstalled,
               material: ['Concrete', 'Polyethylene', 'Fibreglass'].includes(row.material) ? row.material : 'Concrete',
-              setbackFromWaterSource: parseFloat(Number(row.setbackFromWaterSource || 0).toFixed(2)),
-              setbackFromHouse: parseFloat(Number(row.setbackFromHouse || 0).toFixed(2)),
-              tankBuryDepth: parseFloat(Number(row.tankBuryDepth || 0).toFixed(2)),
-              openingSize: parseFloat(Number(row.openingSize || 0).toFixed(2)),
-              aboveGroundCollarHeight: parseFloat(Number(row.aboveGroundCollarHeight || 0).toFixed(2)),
+              setbackFromWaterSource: parseNumericalValue(row.setbackFromWaterSource),
+              setbackFromHouse: parseNumericalValue(row.setbackFromHouse),
+              tankBuryDepth: parseNumericalValue(row.tankBuryDepth),
+              openingSize: parseNumericalValue(row.openingSize),
+              aboveGroundCollarHeight: parseNumericalValue(row.aboveGroundCollarHeight),
               systemType: ['Cistern', 'Septic Tank'].includes(row.systemType) ? row.systemType : 'Septic Tank',
               assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
-              siteCondition: Number(row.siteCondition || 5),
-              coverCondition: Number(row.coverCondition || 5),
-              collarCondition: Number(row.collarCondition || 5),
-              interiorCondition: Number(row.interiorCondition || 5),
-              overallCondition: Number(row.overallCondition || 5),
+              siteCondition: parseConditionValue(row.siteCondition),
+              coverCondition: parseConditionValue(row.coverCondition),
+              collarCondition: parseConditionValue(row.collarCondition),
+              interiorCondition: parseConditionValue(row.interiorCondition),
+              overallCondition: parseConditionValue(row.overallCondition),
               abandoned: String(row.abandoned ?? '').trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
               fieldNotes: String(row.fieldNotes ?? ''),
           };
@@ -935,7 +961,7 @@ export function DashboardClient() {
         // Not editable if it's a Cistern
       } else {
         const isConditionField = ['siteCondition', 'coverCondition', 'collarCondition', 'interiorCondition', 'overallCondition'].includes(key);
-        const inputType = key === 'yearInstalled' ? 'text' : (typeof value === 'number' ? 'number' : 'text');
+        const inputType = (key === 'yearInstalled' || typeof value === 'string') ? 'text' : 'number';
         return (
           <Input
             autoFocus
@@ -944,13 +970,13 @@ export function DashboardClient() {
             max={isConditionField ? 5 : undefined}
             min={isConditionField ? 1 : undefined}
             onBlur={(e) => {
-              const val = (typeof value === 'number' && key !== 'yearInstalled') ? parseFloat(e.target.value) : e.target.value;
+              const val = (typeof value === 'number' && key !== 'yearInstalled' && typeof value !== 'string') ? parseFloat(e.target.value) : e.target.value;
               handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
               setEditingCell(null);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const val = (typeof value === 'number' && key !== 'yearInstalled') ? parseFloat(e.currentTarget.value) : e.currentTarget.value;
+                const val = (typeof value === 'number' && key !== 'yearInstalled' && typeof value !== 'string') ? parseFloat(e.currentTarget.value) : e.currentTarget.value;
                 handleValueChange(asset.assetId, key as keyof AssetWithRecommendation, val);
                 setEditingCell(null);
               }

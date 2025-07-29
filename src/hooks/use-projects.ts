@@ -12,9 +12,19 @@ type CostBreakdownItem = {
   unitPrice: number;
 };
 
-type AssetWithRecommendation = Omit<Asset, 'yearInstalled'> & { 
+type AssetWithRecommendation = Omit<Asset, 'yearInstalled' | 'setbackFromWaterSource' | 'setbackFromHouse' | 'tankBuryDepth' | 'openingSize' | 'aboveGroundCollarHeight' | 'siteCondition' | 'coverCondition' | 'collarCondition' | 'interiorCondition' | 'overallCondition'> & { 
   yearInstalled: number | string;
   abandoned: 'Yes' | 'No';
+  setbackFromWaterSource: number | string;
+  setbackFromHouse: number | string;
+  tankBuryDepth: number | string;
+  openingSize: number | string;
+  aboveGroundCollarHeight: number | string;
+  siteCondition: number | string;
+  coverCondition: number | string;
+  collarCondition: number | string;
+  interiorCondition: number | string;
+  overallCondition: number | string;
   recommendation?: string[];
   userRecommendation?: string[];
   aiEstimatedCost?: number;

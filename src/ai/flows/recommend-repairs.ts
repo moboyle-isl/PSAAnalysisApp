@@ -9,25 +9,25 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {z} from 'zod';
 
 const AssetSchema = z.object({
   assetId: z.string(),
   address: z.string(),
   yearInstalled: z.union([z.number(), z.string()]),
   material: z.enum(['Concrete', 'Polyethylene', 'Fibreglass']),
-  setbackFromWaterSource: z.number(),
-  setbackFromHouse: z.number(),
-  tankBuryDepth: z.number(),
-  openingSize: z.number(),
-  aboveGroundCollarHeight: z.number(),
+  setbackFromWaterSource: z.union([z.number(), z.string()]),
+  setbackFromHouse: z.union([z.number(), z.string()]),
+  tankBuryDepth: z.union([z.number(), z.string()]),
+  openingSize: z.union([z.number(), z.string()]),
+  aboveGroundCollarHeight: z.union([z.number(), z.string()]),
   systemType: z.enum(['Cistern', 'Septic Tank']),
   assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
-  siteCondition: z.number(),
-  coverCondition: z.number(),
-  collarCondition: z.number(),
-  interiorCondition: z.number(),
-  overallCondition: z.number(),
+  siteCondition: z.union([z.number(), z.string()]),
+  coverCondition: z.union([z.number(), z.string()]),
+  collarCondition: z.union([z.number(), z.string()]),
+  interiorCondition: z.union([z.number(), z.string()]),
+  overallCondition: z.union([z.number(), z.string()]),
   abandoned: z.enum(['Yes', 'No']),
   fieldNotes: z.string().optional(),
 });
@@ -110,7 +110,7 @@ You must provide a response for every asset.
 **TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
 For each asset, provide an estimate of its remaining useful life.
 - First, check if the asset matches any of the user-defined rules that specify a "remaining life". If a rule matches, you MUST use the life expectancy from that rule.
-- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type. A 'Year Installed' of "Unknown" means it is likely very old.
+- If no life rule matches, then base your estimate on its 'Year Installed', all condition scores, 'Material', and system type. A 'Year Installed' of "Unknown" means it is likely very old. A value of "N/A" for a condition score means the data is unavailable and should be ignored.
 - You MUST choose from one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "20-25 years".
 - The maximum value is "20-25 years".
 - If a full replacement is recommended in Task 2, the remaining life should generally be '0-5 years', unless a life rule specifies otherwise.
@@ -121,7 +121,7 @@ For each asset, you will create a list of one or more repair recommendations. Fo
 
 1.  **COMBINE RULE-BASED AND FIELD-NOTE-BASED ANALYSIS.**
     - First, check if the asset's data matches any of the user-defined rules that specify a "recommendation". Collect all matching rule-based recommendations.
-    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems that require repairs.
+    - Second, independently analyze the 'Field Notes' and condition scores to identify any other problems that require repairs. A score of "N/A" means the data is not available.
     - Combine the findings from both sources to create a final list of recommendations. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
 
 2.  **HANDLE NO ACTION.**
