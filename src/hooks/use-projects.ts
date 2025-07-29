@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocalStorage } from './use-local-storage';
 import type { Asset, RepairPrice } from '@/lib/data';
 import { initialAssets, initialRepairPrices } from '@/lib/data';
@@ -39,7 +39,7 @@ export type Project = {
 
 const DEFAULT_PROJECT_ID = 'default';
 
-const defaultAssets = initialAssets.map(d => ({ ...d, abandoned: 'No' as 'Yes' | 'No', recommendation: undefined, userRecommendation: undefined, aiEstimatedCost: undefined, userVerifiedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
+const defaultAssets = initialAssets.map(d => ({ ...d, recommendation: undefined, userRecommendation: undefined, aiEstimatedCost: undefined, userVerifiedCost: undefined, needsPrice: false, estimatedRemainingLife: undefined, costBreakdown: [] }));
 
 const DEFAULT_PROJECT: Project = {
     id: DEFAULT_PROJECT_ID,
@@ -72,7 +72,26 @@ export function useProjects() {
       setActiveProjectId(DEFAULT_PROJECT_ID);
     }
     setIsReady(true);
-  }, [activeProjectId, projects, setActiveProjectId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId]);
+
+  const activeProjectStateString = useMemo(() => {
+    return activeProjectState ? JSON.stringify(activeProjectState) : null;
+  }, [activeProjectState]);
+
+  // This effect now safely auto-saves when the content of the project changes.
+  useEffect(() => {
+    if (isReady && activeProjectStateString) {
+       setProjects(prevProjects =>
+        prevProjects.map(p =>
+          p.id === activeProjectId
+            ? { ...p, snapshot: JSON.parse(activeProjectStateString) }
+            : p
+        )
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId, activeProjectStateString, isReady]);
 
   const updateCurrentProject = useCallback(() => {
     if (!activeProjectState || !activeProjectId) return;
@@ -87,19 +106,8 @@ export function useProjects() {
 
   const loadProject = useCallback((projectId: string) => {
     if (projectId === activeProjectId) return;
-
-    // First, save any pending changes for the current project before switching
-    if (activeProjectState) {
-        setProjects(prevProjects => 
-          prevProjects.map(p => 
-            p.id === activeProjectId ? { ...p, snapshot: JSON.parse(JSON.stringify(activeProjectState)) } : p
-          )
-        );
-    }
-    
-    // Now, set the new active project ID, which will trigger the useEffect to load its state
     setActiveProjectId(projectId);
-  }, [projects, activeProjectId, activeProjectState, setProjects, setActiveProjectId]);
+  }, [activeProjectId, setActiveProjectId]);
   
 
   const saveProject = useCallback((name: string) => {
