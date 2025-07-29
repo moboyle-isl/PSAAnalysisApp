@@ -425,7 +425,7 @@ export function DashboardClient() {
           return rec ? {
             ...asset,
             recommendation: rec.recommendation,
-            userRecommendation: rec.recommendation, // Populate user recs initially
+            userRecommendation: undefined, // Do NOT auto-populate user recommendation
             estimatedRemainingLife: rec.estimatedRemainingLife,
             aiEstimatedCost: undefined, // Clear old costs
             needsPrice: false,
@@ -479,7 +479,6 @@ export function DashboardClient() {
             return { 
                 ...asset, 
                 aiEstimatedCost: costInfo.aiEstimatedCost,
-                userVerifiedCost: asset.userVerifiedCost, // Keep existing value
                 needsPrice: costInfo.needsPrice,
                 costBreakdown: costInfo.costBreakdown,
             };
