@@ -481,7 +481,7 @@ export function DashboardClient() {
       );
       
       const successCount = result.recommendations.length;
-      if (successCount > 0) {
+      if (successCount > 0 && (!result.errors || result.errors.length === 0)) {
         toast({
             title: "Recommendations Generated",
             description: `Successfully generated recommendations for ${successCount} asset(s).`,
