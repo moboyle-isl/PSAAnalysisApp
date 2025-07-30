@@ -444,6 +444,16 @@ export function DashboardClient() {
         rules: rulesString,
       });
 
+      if (result.errors && result.errors.length > 0) {
+        result.errors.forEach(error => {
+            toast({
+                variant: 'destructive',
+                title: `Asset ${error.assetId} Failed`,
+                description: `Could not generate recommendation: ${error.message}`,
+            });
+        });
+      }
+
       const recommendationsMap = new Map(
         result.recommendations.map((r) => [r.assetId, { 
             recommendation: r.recommendation, 
@@ -469,11 +479,15 @@ export function DashboardClient() {
           return asset;
         })
       );
+      
+      const successCount = result.recommendations.length;
+      if (successCount > 0) {
+        toast({
+            title: "Recommendations Generated",
+            description: `Successfully generated recommendations for ${successCount} asset(s).`,
+        });
+      }
 
-      toast({
-        title: "Recommendations Generated",
-        description: "AI recommendations have been generated. Review and then generate costs.",
-      });
 
     } catch (error) {
       console.error(error);

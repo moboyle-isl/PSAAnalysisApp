@@ -55,6 +55,10 @@ const SingleAssetRecommendationSchema = z.object({
 
 const RecommendRepairsAllAssetsOutputSchema = z.object({
     recommendations: z.array(SingleAssetRecommendationSchema),
+    errors: z.array(z.object({
+        assetId: z.string(),
+        message: z.string(),
+    })).optional(),
 });
 export type RecommendRepairsAllAssetsOutput = z.infer<typeof RecommendRepairsAllAssetsOutputSchema>;
 
@@ -181,17 +185,23 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
 
         const assetResults = await Promise.allSettled(assetPromises);
 
-        const allRecommendations = assetResults.reduce<SingleAssetRecommendationSchema[]>((acc, result) => {
-            if (result.status === 'fulfilled' && result.value.output) {
-                acc.push(result.value.output);
-            }
-            if (result.status === 'rejected') {
-                console.error("An asset failed to process:", result.reason);
-            }
-            return acc;
-        }, []);
+        const recommendations: SingleAssetRecommendationSchema[] = [];
+        const errors: { assetId: string; message: string }[] = [];
 
-        return { recommendations: allRecommendations };
+        assetResults.forEach((result, index) => {
+            if (result.status === 'fulfilled' && result.value.output) {
+                recommendations.push(result.value.output);
+            } else if (result.status === 'rejected') {
+                const assetId = input.assets[index].assetId;
+                console.error(`Asset ${assetId} failed to process:`, result.reason);
+                errors.push({
+                    assetId,
+                    message: (result.reason as Error)?.message || 'An unknown error occurred',
+                });
+            }
+        });
+
+        return { recommendations, errors };
     }
 );
 
