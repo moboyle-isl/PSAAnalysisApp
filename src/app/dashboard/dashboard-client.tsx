@@ -421,7 +421,7 @@ export function DashboardClient() {
 
             if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
                  if (operatorText) {
-                    return `${columnLabel} ${operatorText} ${condition.value}`;
+                    return `${columnLabel} ${operatorText} "${condition.value}"`;
                 }
             }
 
