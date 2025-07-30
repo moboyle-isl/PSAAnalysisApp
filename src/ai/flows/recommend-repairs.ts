@@ -22,7 +22,7 @@ const AssetSchema = z.object({
   openingSize: z.string(),
   aboveGroundCollarHeight: z.string(),
   systemType: z.enum(['Cistern', 'Septic Tank']),
-  assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
+  assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other', 'Unknown']),
   siteCondition: z.string(),
   coverCondition: z.string(),
   collarCondition: z.string(),
@@ -48,7 +48,7 @@ export type RecommendRepairsAllAssetsInput = z.infer<typeof RecommendRepairsAllA
 
 const SingleAssetRecommendationSchema = z.object({
     assetId: z.string(),
-    recommendation: z.array(z.string()).describe('A list of recommended repair or replacement actions. Each item should be a short summary.'),
+    recommendation: z.array(z.string()).describe("A list of recommended repair or replacement actions. Each item should be a short summary. If no action is needed, it must be an array containing the single string 'No action needed'."),
     estimatedRemainingLife: z.string().describe("An estimate of the remaining life of the asset. It MUST be one of the following values: '0-5 years', '5-10 years', '10-15 years', '15-20 years', or '20-25 years'."),
 });
 

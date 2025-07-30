@@ -10,7 +10,7 @@ export type Asset = {
   openingSize: number | string;
   aboveGroundCollarHeight: number | string;
   systemType: 'Cistern' | 'Septic Tank';
-  assetSubType: 'Cistern' | 'Pump Out' | 'Mound' | 'Septic Field' | 'Other';
+  assetSubType: 'Cistern' | 'Pump Out' | 'Mound' | 'Septic Field' | 'Other' | 'Unknown';
   siteCondition: number | string;
   coverCondition: number | string;
   collarCondition: number | string;

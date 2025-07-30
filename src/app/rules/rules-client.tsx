@@ -59,7 +59,7 @@ export const ASSET_COLUMNS = [
     { key: 'yearInstalled', label: 'Year Installed', type: 'string' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'] },
     { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'] },
-    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'] },
+    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other', 'Unknown'] },
     { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number' },
     { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number' },
     { key: 'tankBuryDepth', label: 'Bury Depth (m)', type: 'number' },

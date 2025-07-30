@@ -119,7 +119,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'yearInstalled', label: 'Year Installed', type: 'string', width: '120px' },
     { key: 'material', label: 'Material', type: 'enum', options: ['Concrete', 'Polyethylene', 'Fibreglass'], width: '120px' },
     { key: 'systemType', label: 'System Type', type: 'enum', options: ['Cistern', 'Septic Tank'], width: '120px' },
-    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'], width: '120px' },
+    { key: 'assetSubType', label: 'Sub-Type', type: 'enum', options: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other', 'Unknown'], width: '120px' },
     { key: 'setbackFromWaterSource', label: 'Setback Water (m)', type: 'number', width: '120px' },
     { key: 'setbackFromHouse', label: 'Setback House (m)', type: 'number', width: '120px' },
     { key: 'tankBuryDepth', label: 'Bury Depth (m)', type: 'number', width: '120px' },
@@ -180,7 +180,7 @@ const newAssetSchema = z.object({
   openingSize: z.coerce.number().min(0),
   aboveGroundCollarHeight: z.coerce.number().min(0),
   systemType: z.enum(['Cistern', 'Septic Tank']),
-  assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other']),
+  assetSubType: z.enum(['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other', 'Unknown']),
   siteCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   coverCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
   collarCondition: z.coerce.number().min(1, "Must be between 1 and 5").max(5, "Must be between 1 and 5"),
@@ -721,7 +721,7 @@ export function DashboardClient() {
               openingSize: parseNumericalValue(row.openingSize),
               aboveGroundCollarHeight: parseNumericalValue(row.aboveGroundCollarHeight),
               systemType: ['Cistern', 'Septic Tank'].includes(row.systemType) ? row.systemType : 'Septic Tank',
-              assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other'].includes(row.assetSubType) ? row.assetSubType : 'Other',
+              assetSubType: ['Cistern', 'Pump Out', 'Mound', 'Septic Field', 'Other', 'Unknown'].includes(row.assetSubType) ? row.assetSubType : 'Other',
               siteCondition: parseConditionValue(row.siteCondition),
               coverCondition: parseConditionValue(row.coverCondition),
               collarCondition: parseConditionValue(row.collarCondition),
@@ -911,6 +911,7 @@ export function DashboardClient() {
               <SelectItem value="Mound">Mound</SelectItem>
               <SelectItem value="Septic Field">Septic Field</SelectItem>
               <SelectItem value="Other">Other</SelectItem>
+              <SelectItem value="Unknown">Unknown</SelectItem>
             </SelectContent>
           </Select>
         );
@@ -1327,6 +1328,7 @@ export function DashboardClient() {
                                             <SelectItem value="Mound">Mound</SelectItem>
                                             <SelectItem value="Septic Field">Septic Field</SelectItem>
                                             <SelectItem value="Other">Other</SelectItem>
+                                            <SelectItem value="Unknown">Unknown</SelectItem>
                                            </>
                                        )}
                                     </SelectContent>
