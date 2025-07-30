@@ -32,6 +32,7 @@ export async function recommendRepairsForAllAssets(
             collarCondition: String(a.collarCondition),
             interiorCondition: String(a.interiorCondition),
             overallCondition: String(a.overallCondition),
+            fieldNotes: a.fieldNotes || '',
         }))
     });
     return result;
