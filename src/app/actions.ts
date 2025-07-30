@@ -17,9 +17,28 @@ export async function recommendRepairsForAllAssets(
   data: RecommendRepairsAllAssetsInput
 ): Promise<RecommendRepairsAllAssetsOutput> {
   try {
-    // The problematic data conversion has been removed.
-    // The data is now passed directly to the flow.
-    const result = await recommendRepairsForAllAssetsFlow(data);
+    // The AI flow expects all asset properties to be strings.
+    // This mapping ensures that numbers, 'N/A', or 'Unknown' are all converted.
+    const assetsWithStringValues = data.assets.map(asset => ({
+      ...asset,
+      yearInstalled: String(asset.yearInstalled),
+      setbackFromWaterSource: String(asset.setbackFromWaterSource),
+      setbackFromHouse: String(asset.setbackFromHouse),
+      tankBuryDepth: String(asset.tankBuryDepth),
+      openingSize: String(asset.openingSize),
+      aboveGroundCollarHeight: String(asset.aboveGroundCollarHeight),
+      siteCondition: String(asset.siteCondition),
+      coverCondition: String(asset.coverCondition),
+      collarCondition: String(asset.collarCondition),
+      interiorCondition: String(asset.interiorCondition),
+      overallCondition: String(asset.overallCondition),
+      fieldNotes: asset.fieldNotes || '', // Ensure fieldNotes is always a string
+    }));
+
+    const result = await recommendRepairsForAllAssetsFlow({
+        ...data,
+        assets: assetsWithStringValues
+    });
     return result;
   } catch (error) {
     console.error(error);
