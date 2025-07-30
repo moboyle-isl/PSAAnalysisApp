@@ -130,7 +130,7 @@ Follow this logic precisely:
     - **Analysis-Based:** Independently, analyze the 'Field Notes' and all available condition scores to identify any other problems that require repairs. Add any new findings to the temporary list. A score of "N/A" means the data is not available and should be ignored for that specific score.
 2.  **Finalize the List:**
     - Combine the recommendations from both sources. For example, if a rule recommends moving a tank and the field notes mention a broken conduit, you must recommend both repairs.
-    - If, after checking both rules and analysis, there are no identified issues, the final 'recommendation' array should contain only the string "No action needed". Otherwise, it should contain the combined list of required actions.
+    - If, after checking both rules and analysis, there are no identified issues, the final 'recommendation' array should contain a single string in the array: "No action needed". Otherwise, it should contain the combined list of required actions.
 
 ---
 **User-Defined Rules (Used for Tasks 1 & 2):**
