@@ -17,24 +17,9 @@ export async function recommendRepairsForAllAssets(
   data: RecommendRepairsAllAssetsInput
 ): Promise<RecommendRepairsAllAssetsOutput> {
   try {
-    const result = await recommendRepairsForAllAssetsFlow({
-        ...data,
-        assets: data.assets.map(a => ({
-            ...a,
-            yearInstalled: String(a.yearInstalled || 'Unknown'),
-            setbackFromWaterSource: String(a.setbackFromWaterSource),
-            setbackFromHouse: String(a.setbackFromHouse),
-            tankBuryDepth: String(a.tankBuryDepth),
-            openingSize: String(a.openingSize),
-            aboveGroundCollarHeight: String(a.aboveGroundCollarHeight),
-            siteCondition: String(a.siteCondition),
-            coverCondition: String(a.coverCondition),
-            collarCondition: String(a.collarCondition),
-            interiorCondition: String(a.interiorCondition),
-            overallCondition: String(a.overallCondition),
-            fieldNotes: a.fieldNotes || '',
-        }))
-    });
+    // The problematic data conversion has been removed.
+    // The data is now passed directly to the flow.
+    const result = await recommendRepairsForAllAssetsFlow(data);
     return result;
   } catch (error) {
     console.error(error);
