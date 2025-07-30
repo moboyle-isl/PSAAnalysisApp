@@ -272,3 +272,4 @@ const generateCostsFlow = ai.defineFlow(
         return { costs: allCosts };
     }
 );
+
