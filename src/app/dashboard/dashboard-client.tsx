@@ -554,7 +554,7 @@ export function DashboardClient() {
 
     const newAsset: AssetWithRecommendation = {
       ...values,
-      yearInstalled: values.yearInstalled.toLowerCase() === 'unknown' ? 'Unknown' : Number(values.yearInstalled),
+      yearInstalled: values.yearInstalled.toLowerCase() === 'unknown' ? 'Unknown' : String(values.yearInstalled),
       assetId: newAssetId,
       recommendation: undefined,
       userRecommendation: undefined,
@@ -701,14 +701,13 @@ export function DashboardClient() {
             console.warn(`Skipping row ${index + 2} due to missing assetId.`);
             return null;
           }
-
+          
           const yearInstalledRaw = row.yearInstalled;
-          let yearInstalled: number | string;
+          let yearInstalled: string;
           if (yearInstalledRaw === null || yearInstalledRaw === undefined || String(yearInstalledRaw).trim() === '') {
             yearInstalled = 'Unknown';
           } else {
-             const numYear = Number(yearInstalledRaw);
-             yearInstalled = isNaN(numYear) ? String(yearInstalledRaw) : numYear;
+             yearInstalled = String(yearInstalledRaw);
           }
           
           const asset = {
