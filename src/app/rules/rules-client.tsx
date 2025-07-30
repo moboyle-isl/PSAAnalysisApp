@@ -284,9 +284,6 @@ export function RulesClient() {
         } else {
             const operator = [...OPERATORS.number, ...OPERATORS.enum, ...OPERATORS.string].find(o => o.value === cond.operator);
             let valueToDisplay = String(cond.value);
-            if (column.key === 'yearInstalled' && cond.conditionText) {
-                valueToDisplay = cond.conditionText;
-            }
 
             conditionStr = <span key={cond.id || index}><span className="font-semibold">{column.label}</span> is <span className="font-semibold">{operator?.label.toLowerCase() || ''}</span> <span className="font-mono p-1 bg-muted rounded-md">{valueToDisplay}</span></span>
         }
