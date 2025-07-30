@@ -96,23 +96,26 @@ export async function generateCostsForRecommendations(input: GenerateCostsInput)
 }
 
 
-const allAssetsPrompt = ai.definePrompt({
-  name: 'recommendRepairsForAllAssetsPrompt',
-  input: { schema: RecommendRepairsAllAssetsInputSchema },
-  output: { schema: RecommendRepairsAllAssetsOutputSchema },
+const recommendRepairsSingleAssetPrompt = ai.definePrompt({
+  name: 'recommendRepairsSingleAssetPrompt',
+  input: { schema: z.object({
+      asset: AssetSchema,
+      rules: z.string(),
+  }) },
+  output: { schema: SingleAssetRecommendationSchema },
   config: {
     temperature: 0,
   },
-  prompt: `You are an AI asset management expert. For each asset provided, you MUST perform two distinct tasks in a specific order:
+  prompt: `You are an AI asset management expert. For the asset provided, you MUST perform two distinct tasks in a specific order:
 1.  Estimate the remaining life.
 2.  Recommend repairs.
 
-You must provide a response for every single asset.
+You must provide a response for the given asset.
 
 ---
-**TASK 1: ESTIMATE REMAINING LIFE (FOR EACH ASSET)**
+**TASK 1: ESTIMATE REMAINING LIFE**
 Follow this logic precisely:
-1.  **Check for Rules First:** Examine the provided "User-Defined Rules". If an asset's data matches a rule that defines a "remaining life", you MUST use the life expectancy from that rule. This is the highest priority.
+1.  **Check for Rules First:** Examine the provided "User-Defined Rules". If the asset's data matches a rule that defines a "remaining life", you MUST use the life expectancy from that rule. This is the highest priority.
 2.  **Analyze if No Rule Applies:** If and only if no life-related rule matches the asset, you must then estimate the remaining life based on its 'Year Installed', all available condition scores, 'Material', and system type.
     - A 'Year Installed' of "Unknown" means it is likely very old.
     - A value of "N/A" for a condition score means the data is unavailable and should be ignored.
@@ -120,7 +123,7 @@ Follow this logic precisely:
 3.  **Output Format:** Your final estimate MUST be one of the following 5-year increment options: "0-5 years", "5-10 years", "10-15 years", "15-20 years", or "20-25 years".
 
 ---
-**TASK 2: RECOMMEND REPAIRS (FOR EACH ASSET)**
+**TASK 2: RECOMMEND REPAIRS**
 Follow this logic precisely:
 1.  **Gather All Recommendations:** You will create a final list of recommendations by combining two sources:
     - **Rule-Based:** Check if the asset's data matches any of the "User-Defined Rules" that specify a "recommendation". Add all matching recommendations to a temporary list.
@@ -138,29 +141,27 @@ No user-defined rules provided.
 {{/if}}
 
 ---
-**Assets to Analyze:**
-{{#each assets}}
-- Asset ID: {{assetId}}
-  - Address: {{address}}
-  - Year Installed: {{yearInstalled}}
-  - Material: {{material}}
-  - Setback Water (m): {{setbackFromWaterSource}}
-  - Setback House (m): {{setbackFromHouse}}
-  - Bury Depth (m): {{tankBuryDepth}}
-  - Opening Size (m): {{openingSize}}
-  - Collar Height (m): {{aboveGroundCollarHeight}}
-  - System Type: {{systemType}}
-  - Sub-Type: {{assetSubType}}
-  - Site Condition: {{siteCondition}}
-  - Cover Condition: {{coverCondition}}
-  - Collar Condition: {{collarCondition}}
-  - Interior Condition: {{interiorCondition}}
-  - Overall Condition: {{overallCondition}}
-  - Abandoned / Not in Use?: {{abandoned}}
-  - Field Notes: "{{fieldNotes}}"
-{{/each}}
+**Asset to Analyze:**
+- Asset ID: {{asset.assetId}}
+  - Address: {{asset.address}}
+  - Year Installed: {{asset.yearInstalled}}
+  - Material: {{asset.material}}
+  - Setback Water (m): {{asset.setbackFromWaterSource}}
+  - Setback House (m): {{asset.setbackFromHouse}}
+  - Bury Depth (m): {{asset.tankBuryDepth}}
+  - Opening Size (m): {{asset.openingSize}}
+  - Collar Height (m): {{asset.aboveGroundCollarHeight}}
+  - System Type: {{asset.systemType}}
+  - Sub-Type: {{asset.assetSubType}}
+  - Site Condition: {{asset.siteCondition}}
+  - Cover Condition: {{asset.coverCondition}}
+  - Collar Condition: {{asset.collarCondition}}
+  - Interior Condition: {{asset.interiorCondition}}
+  - Overall Condition: {{asset.overallCondition}}
+  - Abandoned / Not in Use?: {{asset.abandoned}}
+  - Field Notes: "{{asset.fieldNotes}}"
 
-Return your answer as a list of recommendations, one for each asset ID, in the format prescribed by the output schema. Ensure all fields in the output schema are populated for every asset.
+Return your answer in the format prescribed by the output schema. Ensure all fields in the output schema are populated.
 `,
 });
 
@@ -171,30 +172,24 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         outputSchema: RecommendRepairsAllAssetsOutputSchema,
     },
     async (input) => {
-        const BATCH_SIZE = 50;
-        const batches = [];
-        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
-            batches.push(input.assets.slice(i, i + BATCH_SIZE));
-        }
-
-        const batchPromises = batches.map(batch => 
-            allAssetsPrompt({
-                assets: batch,
+        const assetPromises = input.assets.map(asset => 
+            recommendRepairsSingleAssetPrompt({
+                asset: asset,
                 rules: input.rules,
             })
         );
 
-        const batchResults = await Promise.allSettled(batchPromises);
+        const assetResults = await Promise.allSettled(assetPromises);
 
-        const allRecommendations = batchResults.flatMap(result => {
-            if (result.status === 'fulfilled' && result.value.output?.recommendations) {
-                return result.value.output.recommendations;
+        const allRecommendations = assetResults.reduce<SingleAssetRecommendationSchema[]>((acc, result) => {
+            if (result.status === 'fulfilled' && result.value.output) {
+                acc.push(result.value.output);
             }
             if (result.status === 'rejected') {
-                console.error("A batch failed to process:", result.reason);
+                console.error("An asset failed to process:", result.reason);
             }
-            return [];
-        });
+            return acc;
+        }, []);
 
         return { recommendations: allRecommendations };
     }
