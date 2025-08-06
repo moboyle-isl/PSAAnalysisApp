@@ -215,11 +215,13 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
                 }
             } else if (result.status === 'rejected') {
                 console.error(`Batch ${index} failed:`, result.reason);
+                 // Safely convert the reason to a string.
+                const reasonText = result.reason instanceof Error ? result.reason.message : String(result.reason);
                 // Mark all assets in the failed batch as errored
                 for (const asset of batchAssets) {
                      allErrors.push({
                         assetId: asset.assetId,
-                        message: `The AI model failed to process the batch containing this asset. Reason: ${result.reason?.message || 'Unknown error'}`
+                        message: `The AI model failed to process the batch containing this asset. Reason: ${reasonText || 'Unknown error'}`
                     });
                 }
             }
