@@ -192,40 +192,43 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
 
         const allRecommendations: SingleAssetRecommendationSchema[] = [];
         const allErrors: { assetId: string; message: string; }[] = [];
+        const processedAssetIds = new Set<string>();
 
         batchResults.forEach((result, index) => {
             const batchAssets = batches[index];
             if (result.status === 'fulfilled' && result.value.output) {
                 const output = result.value.output;
-                allRecommendations.push(...output.recommendations);
+
+                if (output.recommendations) {
+                    allRecommendations.push(...output.recommendations);
+                    output.recommendations.forEach(rec => processedAssetIds.add(rec.assetId));
+                }
                 
                 if (output.errors) {
                     allErrors.push(...output.errors);
-                }
-                
-                // Find which assets are missing from the response in this successful batch
-                const receivedAssetIds = new Set(output.recommendations.map(r => r.assetId));
-                const missingAssets = batchAssets.filter(a => !receivedAssetIds.has(a.assetId));
-
-                for (const missing of missingAssets) {
-                    allErrors.push({
-                        assetId: missing.assetId,
-                        message: "The AI model did not return a recommendation for this asset.",
-                    });
+                     output.errors.forEach(err => processedAssetIds.add(err.assetId));
                 }
             } else if (result.status === 'rejected') {
-                console.error(`Batch ${index} failed:`, result.reason);
-                 // Safely convert the reason to a string.
-                const reasonText = result.reason instanceof Error ? result.reason.message : String(result.reason);
-                // Mark all assets in the failed batch as errored
+                const reasonText = result.reason instanceof Error ? result.reason.message : String(result.reason || 'Unknown error');
                 for (const asset of batchAssets) {
                      allErrors.push({
                         assetId: asset.assetId,
-                        message: `The AI model failed to process the batch containing this asset. Reason: ${reasonText || 'Unknown error'}`
+                        message: `The AI model failed to process the batch containing this asset. Reason: ${reasonText}`
                     });
+                    processedAssetIds.add(asset.assetId);
                 }
             }
         });
+
+        // Final check for any assets that were not processed at all
+        for (const asset of input.assets) {
+            if (!processedAssetIds.has(asset.assetId)) {
+                allErrors.push({
+                    assetId: asset.assetId,
+                    message: "The AI model did not return a recommendation for this asset.",
+                });
+            }
+        }
 
         return { 
             recommendations: allRecommendations,
