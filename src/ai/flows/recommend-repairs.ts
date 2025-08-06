@@ -282,7 +282,7 @@ const generateCostsFlow = ai.defineFlow(
     },
     async (input) => {
         const BATCH_SIZE = 50;
-        const batches = [];
+        const batches: any[][] = [];
         for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
             batches.push(input.assets.slice(i, i + BATCH_SIZE));
         }
@@ -296,14 +296,30 @@ const generateCostsFlow = ai.defineFlow(
 
         const batchResults = await Promise.allSettled(batchPromises);
 
-        const allCosts = batchResults.flatMap(result => {
-             if (result.status === 'fulfilled' && result.value.output?.costs) {
-                return result.value.output.costs;
+        const allCosts: SingleAssetCostSchema[] = [];
+
+        batchResults.forEach((result, index) => {
+            const batchAssets = batches[index];
+            if (result.status === 'fulfilled' && result.value.output?.costs) {
+                const outputCosts = result.value.output.costs;
+                allCosts.push(...outputCosts);
+                
+                // Find which assets are missing from the response in this successful batch
+                const receivedAssetIds = new Set(outputCosts.map(c => c.assetId));
+                const missingAssets = batchAssets.filter(a => !receivedAssetIds.has(a.assetId));
+                
+                if (missingAssets.length > 0) {
+                    console.error(`Cost generation successful, but AI did not return costs for ${missingAssets.length} assets in batch ${index}.`);
+                }
+
+            } else if (result.status === 'rejected') {
+                console.error(`Cost generation for batch ${index} failed:`, result.reason);
+                // Unlike the recommendations flow, we don't have a UI to show cost errors.
+                // The primary impact is that costs won't be updated.
+                // We'll log it and continue so the app doesn't crash.
+            } else {
+                 console.error(`Cost generation for batch ${index} produced an empty or invalid response.`);
             }
-            if (result.status === 'rejected') {
-                console.error("A batch failed to process:", result.reason);
-            }
-            return [];
         });
 
         return { costs: allCosts };
