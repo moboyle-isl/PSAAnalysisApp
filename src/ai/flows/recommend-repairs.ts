@@ -175,28 +175,59 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         outputSchema: RecommendRepairsAllAssetsOutputSchema,
     },
     async (input) => {
-        const result = await recommendRepairsForAllAssetsPrompt(input);
-        const output = result.output;
-        
-        if (!output) {
-             throw new Error("Received no output from the AI model.");
+        const BATCH_SIZE = 50;
+        const batches: Asset[][] = [];
+        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
+            batches.push(input.assets.slice(i, i + BATCH_SIZE));
         }
 
-        // Find which assets are missing from the response
-        const receivedAssetIds = new Set(output.recommendations.map(r => r.assetId));
-        const missingAssets = input.assets.filter(a => !receivedAssetIds.has(a.assetId));
+        const batchPromises = batches.map(batchAssets => 
+            recommendRepairsForAllAssetsPrompt({
+                assets: batchAssets,
+                rules: input.rules,
+            })
+        );
 
-        const errors = output.errors || [];
-        for (const missing of missingAssets) {
-            errors.push({
-                assetId: missing.assetId,
-                message: "The AI model did not return a recommendation for this asset.",
-            });
-        }
+        const batchResults = await Promise.allSettled(batchPromises);
 
-        return {
-            recommendations: output.recommendations,
-            errors: errors,
+        const allRecommendations: SingleAssetRecommendationSchema[] = [];
+        const allErrors: { assetId: string; message: string; }[] = [];
+
+        batchResults.forEach((result, index) => {
+            const batchAssets = batches[index];
+            if (result.status === 'fulfilled' && result.value.output) {
+                const output = result.value.output;
+                allRecommendations.push(...output.recommendations);
+                
+                if (output.errors) {
+                    allErrors.push(...output.errors);
+                }
+                
+                // Find which assets are missing from the response in this successful batch
+                const receivedAssetIds = new Set(output.recommendations.map(r => r.assetId));
+                const missingAssets = batchAssets.filter(a => !receivedAssetIds.has(a.assetId));
+
+                for (const missing of missingAssets) {
+                    allErrors.push({
+                        assetId: missing.assetId,
+                        message: "The AI model did not return a recommendation for this asset.",
+                    });
+                }
+            } else if (result.status === 'rejected') {
+                console.error(`Batch ${index} failed:`, result.reason);
+                // Mark all assets in the failed batch as errored
+                for (const asset of batchAssets) {
+                     allErrors.push({
+                        assetId: asset.assetId,
+                        message: `The AI model failed to process the batch containing this asset. Reason: ${result.reason?.message || 'Unknown error'}`
+                    });
+                }
+            }
+        });
+
+        return { 
+            recommendations: allRecommendations,
+            errors: allErrors
         };
     }
 );
