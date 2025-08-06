@@ -176,7 +176,7 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
     },
     async (input) => {
         const BATCH_SIZE = 50;
-        const batches: Asset[][] = [];
+        const batches: any[][] = [];
         for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
             batches.push(input.assets.slice(i, i + BATCH_SIZE));
         }
