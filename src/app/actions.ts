@@ -20,19 +20,24 @@ export async function recommendRepairsForAllAssets(
     // The AI flow expects all asset properties to be strings.
     // This mapping ensures that numbers, 'N/A', or 'Unknown' are all converted.
     const assetsWithStringValues = data.assets.map(asset => ({
-      ...asset,
+      assetId: String(asset.assetId),
+      address: String(asset.address),
       yearInstalled: String(asset.yearInstalled),
+      material: String(asset.material),
       setbackFromWaterSource: String(asset.setbackFromWaterSource),
       setbackFromHouse: String(asset.setbackFromHouse),
       tankBuryDepth: String(asset.tankBuryDepth),
       openingSize: String(asset.openingSize),
       aboveGroundCollarHeight: String(asset.aboveGroundCollarHeight),
+      systemType: String(asset.systemType),
+      assetSubType: String(asset.assetSubType),
       siteCondition: String(asset.siteCondition),
       coverCondition: String(asset.coverCondition),
       collarCondition: String(asset.collarCondition),
       interiorCondition: String(asset.interiorCondition),
       overallCondition: String(asset.overallCondition),
-      fieldNotes: asset.fieldNotes || '', // Ensure fieldNotes is always a string
+      abandoned: String(asset.abandoned),
+      fieldNotes: String(asset.fieldNotes || ''), // Ensure fieldNotes is always a string
     }));
 
     const result = await recommendRepairsForAllAssetsFlow({
