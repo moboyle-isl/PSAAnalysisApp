@@ -100,25 +100,22 @@ export async function generateCostsForRecommendations(input: GenerateCostsInput)
 }
 
 
-const recommendRepairsSingleAssetPrompt = ai.definePrompt({
-  name: 'recommendRepairsSingleAssetPrompt',
-  input: { schema: z.object({
-      asset: AssetSchema,
-      rules: z.string(),
-  }) },
-  output: { schema: SingleAssetRecommendationSchema },
+const recommendRepairsForAllAssetsPrompt = ai.definePrompt({
+  name: 'recommendRepairsForAllAssetsPrompt',
+  input: { schema: RecommendRepairsAllAssetsInputSchema },
+  output: { schema: RecommendRepairsAllAssetsOutputSchema },
   config: {
     temperature: 0,
   },
-  prompt: `You are an AI asset management expert. For the asset provided, you MUST perform two distinct tasks in a specific order:
+  prompt: `You are an AI asset management expert. For each asset in the provided list, you MUST perform two distinct tasks in a specific order:
 1.  Estimate the remaining life.
 2.  Recommend repairs.
 
-You must provide a response for the given asset.
+You must provide a response for every asset in the list.
 
+For each asset, follow this logic precisely:
 ---
 **TASK 1: ESTIMATE REMAINING LIFE**
-Follow this logic precisely:
 1.  **Check for Rules First:** Examine the provided "User-Defined Rules". If the asset's data matches a rule that defines a "remaining life", you MUST use the life expectancy from that rule. This is the highest priority.
 2.  **Analyze if No Rule Applies:** If and only if no life-related rule matches the asset, you must then estimate the remaining life based on its 'Year Installed', all available condition scores, 'Material', and system type.
     - A 'Year Installed' of "Unknown" means it is likely very old.
@@ -128,7 +125,6 @@ Follow this logic precisely:
 
 ---
 **TASK 2: RECOMMEND REPAIRS**
-Follow this logic precisely:
 1.  **Gather All Recommendations:** You will create a final list of recommendations by combining two sources:
     - **Rule-Based:** Check if the asset's data matches any of the "User-Defined Rules" that specify a "recommendation". Add all matching recommendations to a temporary list.
     - **Analysis-Based:** Independently, analyze the 'Field Notes' and all available condition scores to identify any other problems that require repairs. Add any new findings to the temporary list. A score of "N/A" means the data is not available and should be ignored for that specific score.
@@ -145,27 +141,30 @@ No user-defined rules provided.
 {{/if}}
 
 ---
-**Asset to Analyze:**
-- Asset ID: {{asset.assetId}}
-  - Address: {{asset.address}}
-  - Year Installed: {{asset.yearInstalled}}
-  - Material: {{asset.material}}
-  - Setback Water (m): {{asset.setbackFromWaterSource}}
-  - Setback House (m): {{asset.setbackFromHouse}}
-  - Bury Depth (m): {{asset.tankBuryDepth}}
-  - Opening Size (m): {{asset.openingSize}}
-  - Collar Height (m): {{asset.aboveGroundCollarHeight}}
-  - System Type: {{asset.systemType}}
-  - Sub-Type: {{asset.assetSubType}}
-  - Site Condition: {{asset.siteCondition}}
-  - Cover Condition: {{asset.coverCondition}}
-  - Collar Condition: {{asset.collarCondition}}
-  - Interior Condition: {{asset.interiorCondition}}
-  - Overall Condition: {{asset.overallCondition}}
-  - Abandoned / Not in Use?: {{asset.abandoned}}
-  - Field Notes: "{{asset.fieldNotes}}"
+**Assets to Analyze:**
+{{#each assets}}
+- Asset ID: {{assetId}}
+  - Address: {{address}}
+  - Year Installed: {{yearInstalled}}
+  - Material: {{material}}
+  - Setback Water (m): {{setbackFromWaterSource}}
+  - Setback House (m): {{setbackFromHouse}}
+  - Bury Depth (m): {{tankBuryDepth}}
+  - Opening Size (m): {{openingSize}}
+  - Collar Height (m): {{aboveGroundCollarHeight}}
+  - System Type: {{systemType}}
+  - Sub-Type: {{assetSubType}}
+  - Site Condition: {{siteCondition}}
+  - Cover Condition: {{coverCondition}}
+  - Collar Condition: {{collarCondition}}
+  - Interior Condition: {{interiorCondition}}
+  - Overall Condition: {{overallCondition}}
+  - Abandoned / Not in Use?: {{abandoned}}
+  - Field Notes: "{{fieldNotes}}"
+---
+{{/each}}
 
-Return your answer in the format prescribed by the output schema. Ensure all fields in the output schema are populated.
+Return your answer as a single JSON object with a "recommendations" field containing an array of your findings, one for each asset ID, in the format prescribed by the output schema. Ensure all fields in the output schema are populated for every asset.
 `,
 });
 
@@ -176,32 +175,29 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         outputSchema: RecommendRepairsAllAssetsOutputSchema,
     },
     async (input) => {
-        const assetPromises = input.assets.map(asset => 
-            recommendRepairsSingleAssetPrompt({
-                asset: asset,
-                rules: input.rules,
-            })
-        );
+        const result = await recommendRepairsForAllAssetsPrompt(input);
+        const output = result.output;
+        
+        if (!output) {
+             throw new Error("Received no output from the AI model.");
+        }
 
-        const assetResults = await Promise.allSettled(assetPromises);
+        // Find which assets are missing from the response
+        const receivedAssetIds = new Set(output.recommendations.map(r => r.assetId));
+        const missingAssets = input.assets.filter(a => !receivedAssetIds.has(a.assetId));
 
-        const recommendations: SingleAssetRecommendationSchema[] = [];
-        const errors: { assetId: string; message: string }[] = [];
+        const errors = output.errors || [];
+        for (const missing of missingAssets) {
+            errors.push({
+                assetId: missing.assetId,
+                message: "The AI model did not return a recommendation for this asset.",
+            });
+        }
 
-        assetResults.forEach((result, index) => {
-            if (result.status === 'fulfilled' && result.value.output) {
-                recommendations.push(result.value.output);
-            } else if (result.status === 'rejected') {
-                const assetId = input.assets[index].assetId;
-                console.error(`Asset ${assetId} failed to process:`, result.reason);
-                errors.push({
-                    assetId,
-                    message: (result.reason as Error)?.message || 'An unknown error occurred',
-                });
-            }
-        });
-
-        return { recommendations, errors };
+        return {
+            recommendations: output.recommendations,
+            errors: errors,
+        };
     }
 );
 
@@ -282,4 +278,3 @@ const generateCostsFlow = ai.defineFlow(
         return { costs: allCosts };
     }
 );
-
