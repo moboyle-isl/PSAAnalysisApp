@@ -834,12 +834,31 @@ export function DashboardClient() {
 
 
   const handleExportData = () => {
-    // 1. Prepare Asset Data
+    // 1. Prepare Asset Data in the correct order and format
     const assetExportData = processedAssets.map(asset => ({
-        ...asset,
-        recommendation: Array.isArray(asset.recommendation) ? asset.recommendation.join(', ') : asset.recommendation,
-        userRecommendation: Array.isArray(asset.userRecommendation) ? asset.userRecommendation.join(', ') : asset.userRecommendation,
-        costBreakdown: JSON.stringify(asset.costBreakdown),
+        'Asset ID': asset.assetId,
+        'Address': asset.address,
+        'Year Installed': asset.yearInstalled,
+        'Material': asset.material,
+        'System Type': asset.systemType,
+        'Sub-Type': asset.assetSubType,
+        'Setback Water (m)': asset.setbackFromWaterSource,
+        'Setback House (m)': asset.setbackFromHouse,
+        'Bury Depth (m)': asset.tankBuryDepth,
+        'Opening Size (m)': asset.openingSize,
+        'Collar Height (m)': asset.aboveGroundCollarHeight,
+        'Site Condition': asset.siteCondition,
+        'Cover Condition': asset.coverCondition,
+        'Collar Condition': asset.collarCondition,
+        'Interior Condition': asset.interiorCondition,
+        'Overall Condition': asset.overallCondition,
+        'Abandoned / Not in Use?': asset.abandoned,
+        'Field Notes': asset.fieldNotes,
+        'Est. Remaining Life': asset.estimatedRemainingLife,
+        'AI Recommendation': Array.isArray(asset.recommendation) ? asset.recommendation.join(', ') : asset.recommendation,
+        'User Recommendation': Array.isArray(asset.userRecommendation) ? asset.userRecommendation.join(', ') : asset.userRecommendation,
+        'AI Est. Cost': asset.aiEstimatedCost,
+        'User Verified Cost': asset.userVerifiedCost,
     }));
 
     // 2. Prepare Rules Data
