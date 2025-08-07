@@ -440,7 +440,7 @@ export function DashboardClient() {
       const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
       
       const result = await recommendRepairsForAllAssets({
-        assets: assets.map(a => ({...a, yearInstalled: a.yearInstalled || 'Unknown'})),
+        assets: assets.map(a => ({...a, yearInstalled: String(a.yearInstalled || 'Unknown')})),
         rules: rulesString,
       });
 
@@ -833,6 +833,51 @@ export function DashboardClient() {
   };
 
 
+  const handleExportData = () => {
+    // 1. Prepare Asset Data
+    const assetExportData = processedAssets.map(asset => ({
+        ...asset,
+        recommendation: Array.isArray(asset.recommendation) ? asset.recommendation.join(', ') : asset.recommendation,
+        userRecommendation: Array.isArray(asset.userRecommendation) ? asset.userRecommendation.join(', ') : asset.userRecommendation,
+        costBreakdown: JSON.stringify(asset.costBreakdown),
+    }));
+
+    // 2. Prepare Rules Data
+    const rulesExportData = rules.map(rule => {
+        const conditions = rule.conditions.map(c => `Column: ${c.column}, Operator: ${c.operator}, Value: ${c.value || c.conditionText}`).join('; ');
+        return {
+            ruleId: rule.id,
+            ruleType: rule.ruleType,
+            logicalOperator: rule.logicalOperator,
+            conditions: conditions,
+            recommendationText: rule.recommendationText || '',
+            lifeExpectancy: rule.lifeExpectancy || '',
+        }
+    });
+
+    // 3. Prepare Pricing Data (already flat)
+    const pricingExportData = repairPrices;
+    
+    // 4. Create worksheets
+    const assetWorksheet = XLSX.utils.json_to_sheet(assetExportData);
+    const rulesWorksheet = XLSX.utils.json_to_sheet(rulesExportData);
+    const pricingWorksheet = XLSX.utils.json_to_sheet(pricingExportData);
+
+    // 5. Create workbook and append sheets
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, assetWorksheet, 'Asset Data');
+    XLSX.utils.book_append_sheet(workbook, rulesWorksheet, 'Configured Rules');
+    XLSX.utils.book_append_sheet(workbook, pricingWorksheet, 'Unit Pricing');
+
+    // 6. Write file and trigger download
+    XLSX.writeFile(workbook, 'project_export.xlsx');
+
+    toast({
+        title: "Export Successful",
+        description: "Your project data has been exported to project_export.xlsx.",
+    });
+  };
+
   const renderCellContent = (asset: AssetWithRecommendation, key: Column['key']) => {
     const cellId = `${asset.assetId}-${key}`;
     const isEditing = editingCell === cellId;
@@ -1180,9 +1225,9 @@ export function DashboardClient() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            <Button>
-            <Download className="mr-2 h-4 w-4" />
-            Export Data
+            <Button onClick={handleExportData}>
+              <Download className="mr-2 h-4 w-4" />
+              Export Data
             </Button>
             <AlertDialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
                 <AlertDialogTrigger asChild>
