@@ -861,21 +861,51 @@ export function DashboardClient() {
         'User Verified Cost': asset.userVerifiedCost,
     }));
 
+    const createRuleString = (rule: Rule) => {
+        if (!rule.conditions || rule.conditions.length === 0) return '';
+        const conditionsString = rule.conditions.map((condition: Condition) => {
+            const columnDef = ASSET_COLUMNS.find(c => c.key === condition.column);
+            if (!columnDef) return null; // Skip if column not found
+            
+            const columnLabel = columnDef.label;
+            const operatorText = condition.operator ? OPERATOR_TEXT_MAP[condition.operator] : '';
+
+            if (columnDef.type === 'string' && columnDef.key !== 'yearInstalled') {
+                return `${columnLabel} contains "${condition.conditionText}"`;
+            }
+
+            if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
+                 if (operatorText) {
+                    return `${columnLabel} ${operatorText} "${condition.value}"`;
+                }
+            }
+
+            return null; // Should not happen with validation
+        }).filter(Boolean).join(` ${rule.logicalOperator} `);
+        
+        if (!conditionsString) return '';
+
+        const outcome = rule.ruleType === 'REPAIR' 
+            ? `then recommend: "${rule.recommendationText}"` 
+            : `then remaining life is: "${rule.lifeExpectancy}"`;
+
+        return `If (${conditionsString}), ${outcome}`;
+      };
+
     // 2. Prepare Rules Data
     const rulesExportData = rules.map(rule => {
-        const conditions = rule.conditions.map(c => `Column: ${c.column}, Operator: ${c.operator}, Value: ${c.value || c.conditionText}`).join('; ');
         return {
-            ruleId: rule.id,
-            ruleType: rule.ruleType,
-            logicalOperator: rule.logicalOperator,
-            conditions: conditions,
-            recommendationText: rule.recommendationText || '',
-            lifeExpectancy: rule.lifeExpectancy || '',
+            'Rule ID': rule.id,
+            'Rule Description': createRuleString(rule),
         }
     });
 
     // 3. Prepare Pricing Data (already flat)
-    const pricingExportData = repairPrices;
+    const pricingExportData = repairPrices.map(price => ({
+        'Repair Type': price.repairType,
+        'Unit Price': price.unitPrice,
+        'Description': price.description,
+    }));
     
     // 4. Create worksheets
     const assetWorksheet = XLSX.utils.json_to_sheet(assetExportData);
