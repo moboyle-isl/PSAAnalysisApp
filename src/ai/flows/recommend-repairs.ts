@@ -267,7 +267,7 @@ Follow these steps precisely:
     - The final 'recommendedRepairType' list should contain ALL items from the 'userRecommendation' list, regardless of whether they were found in the price list.
     - Calculate the total 'estimatedCost' by summing the 'unitPrice' for every item in the 'costBreakdown' list you built. The cost should only include items with a price.
     - Set 'needsPrice' to true if any item from the 'userRecommendation' list was not found in the 'Available Repairs and Prices' list. Otherwise, set it to false.
-    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None", 'costBreakdown' should be an empty array, 'estimatedCost' should be 0, and 'needsPrice' should be false.
+    - If the user's recommendation is "No action needed" or similar, you MUST ensure 'recommendedRepairType' contains "None", 'costBreakdown' is an empty array, 'estimatedCost' is 0, and 'needsPrice' is false.
 
 ---
 **Available Repairs and Prices:**
@@ -281,7 +281,7 @@ Follow these steps precisely:
 - User Recommendation: {{#each asset.userRecommendation}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}
 
 ---
-Return your answer as a single JSON object for this asset, in the format prescribed by the output schema. Ensure all fields are populated.
+Return your answer as a single JSON object for this asset, in the format prescribed by the output schema. You MUST populate all fields.
 `,
 });
 
@@ -309,10 +309,14 @@ const generateCostsFlow = ai.defineFlow(
 
         const allCosts: SingleAssetCostSchema[] = [];
         results.forEach((result, index) => {
+            const assetId = assetsToProcess[index].assetId;
             if (result.status === 'fulfilled' && result.value?.output) {
                 allCosts.push(result.value.output);
-            } else if (result.status === 'rejected') {
-                const assetId = assetsToProcess[index].assetId;
+            } else if (result.status === 'fulfilled' && !result.value?.output) {
+                // This handles the case where the promise resolved but didn't return a valid output object.
+                console.error(`Cost generation for asset ${assetId} succeeded but returned no output.`);
+            }
+             else if (result.status === 'rejected') {
                 console.error(`Cost generation promise for asset ${assetId} was rejected:`, result.reason);
             }
         });
