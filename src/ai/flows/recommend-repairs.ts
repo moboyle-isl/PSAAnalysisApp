@@ -238,22 +238,30 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
 );
 
 
-const generateCostsPrompt = ai.definePrompt({
-    name: 'generateCostsPrompt',
-    input: { schema: GenerateCostsInputSchema },
-    output: { schema: GenerateCostsOutputSchema },
-    prompt: `You are an AI assistant that determines specific repair types and calculates costs based on a user's final recommendations.
+const generateSingleAssetCostPrompt = ai.definePrompt({
+    name: 'generateSingleAssetCostPrompt',
+    input: {
+        schema: z.object({
+            asset: z.object({
+                assetId: z.string(),
+                userRecommendation: z.array(z.string()),
+            }),
+            repairPrices: z.array(RepairPriceSchema),
+        }),
+    },
+    output: { schema: SingleAssetCostSchema },
+    prompt: `You are an AI assistant that determines specific repair types and calculates costs for a SINGLE asset based on a user's final recommendations.
 
-For each asset provided, you will perform the following steps:
+Follow these steps precisely:
 
 1.  **IDENTIFY REPAIRS AND BUILD COST BREAKDOWN.**
     - Create an empty 'costBreakdown' list for the asset.
     - Read the user's final recommendation list from the 'userRecommendation' field.
     - For each item in the 'userRecommendation' list:
         - **Identify Repair Type**: Search the 'Available Repairs and Prices' list for a 'repairType' that addresses the problem. Be flexible with synonyms (e.g., a recommendation for a 'cracked cover' should match the 'Lid Replacement' repair type).
-	            - If a confident match is found in the price list, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
-		        - If you DO NOT find a confident match, you will still account for this repair later, but do not add it to the cost breakdown.
-	    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None".
+        - If a confident match is found in the price list, add an object to the 'costBreakdown' list containing the matched 'repairType' and its 'unitPrice'.
+        - If you DO NOT find a confident match, you will still account for this repair later, but do not add it to the cost breakdown.
+    - If the user's recommendation is "No action needed" or similar, the 'recommendedRepairType' array should contain "None".
 
 2.  **FINALIZE REPAIR LIST AND COST.**
     - The final 'recommendedRepairType' list should contain ALL items from the 'userRecommendation' list, regardless of whether they were found in the price list.
@@ -268,16 +276,14 @@ For each asset provided, you will perform the following steps:
 {{/each}}
 
 ---
-**Assets to Process:**
-{{#each assets}}
-- Asset ID: {{assetId}}
-  - User Recommendation: {{#each userRecommendation}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}
-{{/each}}
+**Asset to Process:**
+- Asset ID: {{asset.assetId}}
+- User Recommendation: {{#each asset.userRecommendation}}"{{this}}"{{#unless @last}}, {{/unless}}{{/each}}
 
-Return your answer as a list of cost calculations, one for each asset ID, in the format prescribed by the output schema. Ensure all fields are populated for every asset.
+---
+Return your answer as a single JSON object for this asset, in the format prescribed by the output schema. Ensure all fields are populated.
 `,
 });
-
 
 const generateCostsFlow = ai.defineFlow(
     {
@@ -286,44 +292,28 @@ const generateCostsFlow = ai.defineFlow(
         outputSchema: GenerateCostsOutputSchema,
     },
     async (input) => {
-        const BATCH_SIZE = 50;
-        const batches: any[][] = [];
-        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
-            batches.push(input.assets.slice(i, i + BATCH_SIZE));
-        }
+        const assetsToProcess = input.assets.filter(a => a.userRecommendation && a.userRecommendation.length > 0);
 
-        const batchPromises = batches.map(batch => 
-            generateCostsPrompt({
-                assets: batch,
+        const promises = assetsToProcess.map(asset =>
+            generateSingleAssetCostPrompt({
+                asset: asset,
                 repairPrices: input.repairPrices,
+            }).catch(err => {
+                const reason = err instanceof Error ? err.message : String(err);
+                console.error(`Cost generation for asset ${asset.assetId} failed:`, reason);
+                return null; // Return null on failure to filter out later
             })
         );
 
-        const batchResults = await Promise.allSettled(batchPromises);
+        const results = await Promise.allSettled(promises);
 
         const allCosts: SingleAssetCostSchema[] = [];
-
-        batchResults.forEach((result, index) => {
-            const batchAssets = batches[index];
-            if (result.status === 'fulfilled' && result.value.output?.costs) {
-                const outputCosts = result.value.output.costs;
-                allCosts.push(...outputCosts);
-                
-                // Find which assets are missing from the response in this successful batch
-                const receivedAssetIds = new Set(outputCosts.map(c => c.assetId));
-                const missingAssets = batchAssets.filter(a => !receivedAssetIds.has(a.assetId));
-                
-                if (missingAssets.length > 0) {
-                    console.error(`Cost generation successful, but AI did not return costs for ${missingAssets.length} assets in batch ${index}.`);
-                }
-
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled' && result.value?.output) {
+                allCosts.push(result.value.output);
             } else if (result.status === 'rejected') {
-                console.error(`Cost generation for batch ${index} failed:`, result.reason);
-                // Unlike the recommendations flow, we don't have a UI to show cost errors.
-                // The primary impact is that costs won't be updated.
-                // We'll log it and continue so the app doesn't crash.
-            } else {
-                 console.error(`Cost generation for batch ${index} produced an empty or invalid response.`);
+                const assetId = assetsToProcess[index].assetId;
+                console.error(`Cost generation promise for asset ${assetId} was rejected:`, result.reason);
             }
         });
 
