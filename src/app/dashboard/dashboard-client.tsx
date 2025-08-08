@@ -652,6 +652,8 @@ export function DashboardClient() {
         repairPrices: repairPrices,
       });
 
+      // The AI might return an empty `costs` array if no priced repairs were found.
+      // We need to handle this case to update the UI correctly.
       if (result.costs && result.costs.length > 0) {
         const costInfo = result.costs[0];
         setAssets(prevAssets =>
@@ -666,17 +668,28 @@ export function DashboardClient() {
               : a
           )
         );
-        toast({
-          title: "Cost Generated",
-          description: `Successfully generated cost for asset ${costInfo.assetId}.`,
-        });
       } else {
-         toast({
-            variant: "destructive",
-            title: `Asset ${asset.assetId} Failed`,
-            description: "The AI model did not return a cost for this asset.",
-        });
+        // If the costs array is empty, it means no priced repairs were found.
+        // Update the asset to reflect this.
+        setAssets(prevAssets =>
+          prevAssets.map(a =>
+            a.assetId === asset.assetId
+              ? {
+                ...a,
+                aiEstimatedCost: 0,
+                needsPrice: true, // Flag that a price is needed for one of the items.
+                costBreakdown: [],
+              }
+              : a
+          )
+        );
       }
+      
+      toast({
+          title: "Cost Generated",
+          description: `Successfully generated cost for asset ${asset.assetId}.`,
+      });
+
     } catch (error) {
       console.error(error);
       toast({
