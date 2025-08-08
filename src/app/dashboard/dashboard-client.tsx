@@ -137,7 +137,7 @@ const ALL_COLUMNS: Column[] = [
     { key: 'userRecommendation', label: 'User Recommendation', type: 'string', width: '300px' },
     { key: 'aiEstimatedCost', label: 'AI Est. Cost', type: 'number', width: '120px' },
     { key: 'userVerifiedCost', label: 'User Verified Cost', type: 'number', width: '140px' },
-    { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
+    { key: 'actions', label: 'Actions', type: 'action', width: '130px' },
 ];
 
 const EXPORT_COLUMNS: (keyof AssetWithRecommendation)[] = [
@@ -285,6 +285,7 @@ export function DashboardClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadInfoDialogOpen, setIsUploadInfoDialogOpen] = useState(false);
   const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
+  const [generatingCostAssetId, setGeneratingCostAssetId] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -635,6 +636,59 @@ export function DashboardClient() {
     }
   };
 
+  const handleGenerateSingleCost = async (asset: AssetWithRecommendation) => {
+    if (!asset.userRecommendation || asset.userRecommendation.length === 0) {
+      toast({
+        variant: "destructive",
+        title: `Cannot Generate Cost for ${asset.assetId}`,
+        description: "Please provide a 'User Recommendation' for this asset first.",
+      });
+      return;
+    }
+    setGeneratingCostAssetId(asset.assetId);
+    try {
+      const result = await generateCostsForRecommendations({
+        assets: [{ assetId: asset.assetId, userRecommendation: asset.userRecommendation }],
+        repairPrices: repairPrices,
+      });
+
+      if (result.costs && result.costs.length > 0) {
+        const costInfo = result.costs[0];
+        setAssets(prevAssets =>
+          prevAssets.map(a =>
+            a.assetId === costInfo.assetId
+              ? {
+                ...a,
+                aiEstimatedCost: costInfo.aiEstimatedCost,
+                needsPrice: costInfo.needsPrice,
+                costBreakdown: costInfo.costBreakdown,
+              }
+              : a
+          )
+        );
+        toast({
+          title: "Cost Generated",
+          description: `Successfully generated cost for asset ${costInfo.assetId}.`,
+        });
+      } else {
+         toast({
+            variant: "destructive",
+            title: `Asset ${asset.assetId} Failed`,
+            description: "The AI model did not return a cost for this asset.",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: "destructive",
+        title: `Asset ${asset.assetId} Failed`,
+        description: "An unexpected error occurred while generating the cost.",
+      });
+    } finally {
+      setGeneratingCostAssetId(null);
+    }
+  };
+
 
   const handleAddNewAsset = (values: z.infer<typeof newAssetSchema>) => {
     const assetTypePrefix = values.systemType === 'Cistern' ? 'C' : 'S';
@@ -934,8 +988,10 @@ export function DashboardClient() {
                  const value = asset[colDef.key as keyof AssetWithRecommendation];
                  if (Array.isArray(value)) {
                     orderedAsset[colDef.key] = value.join(', ');
-                } else {
+                } else if (value !== undefined && value !== null) {
                     orderedAsset[colDef.key] = value;
+                } else {
+                    orderedAsset[colDef.key] = '';
                 }
             }
         });
@@ -983,16 +1039,26 @@ export function DashboardClient() {
 
     if (key === 'actions') {
       return (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-1">
             <Button 
                 variant="ghost" 
                 size="icon"
                 onClick={() => handleRunSingleRecommendation(asset)}
-                disabled={isGenerating || generatingAssetId === asset.assetId}
+                disabled={isGenerating || generatingAssetId === asset.assetId || isGeneratingCosts}
                 title="Run AI Recommendation"
             >
                 {generatingAssetId === asset.assetId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
                 <span className="sr-only">Run AI Recommendation</span>
+            </Button>
+            <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => handleGenerateSingleCost(asset)}
+                disabled={isGeneratingCosts || generatingCostAssetId === asset.assetId || isGenerating}
+                title="Generate Cost"
+            >
+                {generatingCostAssetId === asset.assetId ? <Loader2 className="h-4 w-4 animate-spin" /> : <CircleDollarSign className="h-4 w-4" />}
+                <span className="sr-only">Generate Cost</span>
             </Button>
             <AlertDialog open={assetToDelete?.assetId === asset.assetId} onOpenChange={(isOpen) => !isOpen && setAssetToDelete(null)}>
                 <AlertDialogTrigger asChild>
