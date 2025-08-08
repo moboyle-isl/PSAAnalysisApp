@@ -100,18 +100,19 @@ export async function generateCostsForRecommendations(input: GenerateCostsInput)
 }
 
 
-const recommendRepairsForAllAssetsPrompt = ai.definePrompt({
-  name: 'recommendRepairsForAllAssetsPrompt',
-  input: { schema: RecommendRepairsAllAssetsInputSchema },
-  output: { schema: RecommendRepairsAllAssetsOutputSchema },
-  config: {
-    temperature: 0,
-  },
-  prompt: `You are an AI asset management expert. For each asset in the provided list, you MUST perform two distinct tasks in a specific order:
+const recommendSingleRepairPrompt = ai.definePrompt({
+    name: 'recommendSingleRepairPrompt',
+    input: { schema: z.object({
+        asset: AssetSchema,
+        rules: z.string(),
+    }) },
+    output: { schema: SingleAssetRecommendationSchema },
+    config: {
+        temperature: 0,
+    },
+    prompt: `You are an AI asset management expert. For the single asset provided, you MUST perform two distinct tasks in a specific order:
 1.  Estimate the remaining life.
 2.  Recommend repairs.
-
-You must provide a response for every asset in the list.
 
 For each asset, follow this logic precisely:
 ---
@@ -141,30 +142,28 @@ No user-defined rules provided.
 {{/if}}
 
 ---
-**Assets to Analyze:**
-{{#each assets}}
-- Asset ID: {{assetId}}
-  - Address: {{address}}
-  - Year Installed: {{yearInstalled}}
-  - Material: {{material}}
-  - Setback Water (m): {{setbackFromWaterSource}}
-  - Setback House (m): {{setbackFromHouse}}
-  - Bury Depth (m): {{tankBuryDepth}}
-  - Opening Size (m): {{openingSize}}
-  - Collar Height (m): {{aboveGroundCollarHeight}}
-  - System Type: {{systemType}}
-  - Sub-Type: {{assetSubType}}
-  - Site Condition: {{siteCondition}}
-  - Cover Condition: {{coverCondition}}
-  - Collar Condition: {{collarCondition}}
-  - Interior Condition: {{interiorCondition}}
-  - Overall Condition: {{overallCondition}}
-  - Abandoned / Not in Use?: {{abandoned}}
-  - Field Notes: "{{fieldNotes}}"
+**Asset to Analyze:**
+- Asset ID: {{asset.assetId}}
+  - Address: {{asset.address}}
+  - Year Installed: {{asset.yearInstalled}}
+  - Material: {{asset.material}}
+  - Setback Water (m): {{asset.setbackFromWaterSource}}
+  - Setback House (m): {{asset.setbackFromHouse}}
+  - Bury Depth (m): {{asset.tankBuryDepth}}
+  - Opening Size (m): {{asset.openingSize}}
+  - Collar Height (m): {{asset.aboveGroundCollarHeight}}
+  - System Type: {{asset.systemType}}
+  - Sub-Type: {{asset.assetSubType}}
+  - Site Condition: {{asset.siteCondition}}
+  - Cover Condition: {{asset.coverCondition}}
+  - Collar Condition: {{asset.collarCondition}}
+  - Interior Condition: {{asset.interiorCondition}}
+  - Overall Condition: {{asset.overallCondition}}
+  - Abandoned / Not in Use?: {{asset.abandoned}}
+  - Field Notes: "{{asset.fieldNotes}}"
 ---
-{{/each}}
 
-Return your answer as a single JSON object with a "recommendations" field containing an array of your findings, one for each asset ID, in the format prescribed by the output schema. Ensure all fields in the output schema are populated for every asset.
+Return your answer as a single JSON object in the format prescribed by the output schema. Ensure all fields in the output schema are populated.
 `,
 });
 
@@ -175,52 +174,53 @@ const recommendRepairsForAllAssetsFlow = ai.defineFlow(
         outputSchema: RecommendRepairsAllAssetsOutputSchema,
     },
     async (input) => {
-        const BATCH_SIZE = 50;
-        const batches: any[][] = [];
-        for (let i = 0; i < input.assets.length; i += BATCH_SIZE) {
-            batches.push(input.assets.slice(i, i + BATCH_SIZE));
-        }
-
-        const batchPromises = batches.map(batchAssets => 
-            recommendRepairsForAllAssetsPrompt({
-                assets: batchAssets,
+        const promises = input.assets.map(asset => 
+            recommendSingleRepairPrompt({
+                asset: asset,
                 rules: input.rules,
+            }).catch(err => {
+                // Ensure errors are caught per-asset and transformed into a standard error object
+                const reason = err instanceof Error ? err.message : String(err);
+                return { 
+                    error: true, 
+                    assetId: asset.assetId,
+                    message: `Failed to get recommendation: ${reason}` 
+                };
             })
         );
 
-        const batchResults = await Promise.allSettled(batchPromises);
+        const results = await Promise.allSettled(promises);
 
         const allRecommendations: SingleAssetRecommendationSchema[] = [];
         const allErrors: { assetId: string; message: string; }[] = [];
-        const processedAssetIds = new Set<string>();
 
-        batchResults.forEach((result, index) => {
-            const batchAssets = batches[index];
-            if (result.status === 'fulfilled' && result.value.output) {
-                const output = result.value.output;
-
-                if (output.recommendations) {
-                    allRecommendations.push(...output.recommendations);
-                    output.recommendations.forEach(rec => processedAssetIds.add(rec.assetId));
+        results.forEach(result => {
+            if (result.status === 'fulfilled') {
+                const value = result.value;
+                if (value.error) {
+                    // Handle custom error object from the .catch block
+                    allErrors.push({ assetId: value.assetId, message: value.message });
+                } else if (value.output) {
+                    allRecommendations.push(value.output);
+                } else {
+                    // This case might not be reachable with the current logic but is a good safeguard.
+                    console.error("Unexpected fulfilled promise without output or error:", value);
                 }
-                
-                if (output.errors) {
-                    allErrors.push(...output.errors);
-                     output.errors.forEach(err => processedAssetIds.add(err.assetId));
-                }
-            } else if (result.status === 'rejected') {
-                const reasonText = result.reason instanceof Error ? result.reason.message : String(result.reason || 'Unknown error');
-                for (const asset of batchAssets) {
-                     allErrors.push({
-                        assetId: asset.assetId,
-                        message: `The AI model failed to process the batch containing this asset. Reason: ${reasonText}`
-                    });
-                    processedAssetIds.add(asset.assetId);
-                }
+            } else { // status is 'rejected'
+                // This will catch unexpected failures in the prompt call itself.
+                // We don't have the asset context here, so this indicates a systemic issue.
+                // For now, we will log this. A more robust solution might involve
+                // mapping back the failed promise to its original asset.
+                console.error("A recommendation promise was rejected:", result.reason);
             }
         });
-
+        
         // Final check for any assets that were not processed at all
+        const processedAssetIds = new Set([
+            ...allRecommendations.map(r => r.assetId),
+            ...allErrors.map(e => e.assetId)
+        ]);
+
         for (const asset of input.assets) {
             if (!processedAssetIds.has(asset.assetId)) {
                 allErrors.push({
