@@ -140,6 +140,32 @@ const ALL_COLUMNS: Column[] = [
     { key: 'actions', label: 'Actions', type: 'action', width: '100px' },
 ];
 
+const EXPORT_COLUMNS: (keyof AssetWithRecommendation)[] = [
+  'assetId',
+  'address',
+  'yearInstalled',
+  'material',
+  'systemType',
+  'assetSubType',
+  'setbackFromWaterSource',
+  'setbackFromHouse',
+  'tankBuryDepth',
+  'openingSize',
+  'aboveGroundCollarHeight',
+  'siteCondition',
+  'coverCondition',
+  'collarCondition',
+  'interiorCondition',
+  'overallCondition',
+  'abandoned',
+  'fieldNotes',
+  'estimatedRemainingLife',
+  'recommendation',
+  'userRecommendation',
+  'aiEstimatedCost',
+  'userVerifiedCost',
+];
+
 const OPERATOR_TEXT_MAP: Record<string, string> = {
   contains: 'contains',
   equals: 'is equal to',
@@ -892,16 +918,12 @@ export function DashboardClient() {
     // 1. Prepare Asset Data in the correct order and format
     const assetExportData = processedAssets.map(asset => {
         const orderedAsset: Record<string, any> = {};
-        ALL_COLUMNS.forEach(column => {
-            if (column.key !== 'actions') {
-                const key = column.key as keyof AssetWithRecommendation;
-                const value = asset[key];
-                // Use the column label as the header in the Excel file
-                if (Array.isArray(value)) {
-                    orderedAsset[column.label] = value.join(', ');
-                } else {
-                    orderedAsset[column.label] = value;
-                }
+        EXPORT_COLUMNS.forEach(key => {
+            const value = asset[key];
+             if (Array.isArray(value)) {
+                orderedAsset[key] = value.join(', ');
+            } else {
+                orderedAsset[key] = value;
             }
         });
         return orderedAsset;
