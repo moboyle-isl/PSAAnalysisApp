@@ -258,6 +258,7 @@ export function DashboardClient() {
   const [newProjectName, setNewProjectName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadInfoDialogOpen, setIsUploadInfoDialogOpen] = useState(false);
+  const [generatingAssetId, setGeneratingAssetId] = useState<string | null>(null);
 
   const form = useForm<z.infer<typeof newAssetSchema>>({
     resolver: zodResolver(newAssetSchema),
@@ -403,40 +404,40 @@ export function DashboardClient() {
   }, [processedAssets]);
 
 
+  const createRuleString = (rule: Rule) => {
+    if (!rule.conditions || rule.conditions.length === 0) return '';
+    const conditionsString = rule.conditions.map((condition: Condition) => {
+        const columnDef = ASSET_COLUMNS.find(c => c.key === condition.column);
+        if (!columnDef) return null; // Skip if column not found
+        
+        const columnLabel = columnDef.label;
+        const operatorText = condition.operator ? OPERATOR_TEXT_MAP[condition.operator] : '';
+
+        if (columnDef.type === 'string' && condition.conditionText) {
+            return `${columnLabel} ${operatorText} "${condition.conditionText}"`;
+        }
+
+        if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
+              if (operatorText) {
+                return `${columnLabel} ${operatorText} "${condition.value}"`;
+            }
+        }
+
+        return null; // Should not happen with validation
+    }).filter(Boolean).join(` ${rule.logicalOperator} `);
+    
+    if (!conditionsString) return '';
+
+    const outcome = rule.ruleType === 'REPAIR' 
+        ? `then recommend: "${rule.recommendationText}"` 
+        : `then remaining life is: "${rule.lifeExpectancy}"`;
+
+    return `If (${conditionsString}), ${outcome}`;
+  };
+
   const handleRunRecommendations = async () => {
     setIsGenerating(true);
     try {
-      const createRuleString = (rule: Rule) => {
-        if (!rule.conditions || rule.conditions.length === 0) return '';
-        const conditionsString = rule.conditions.map((condition: Condition) => {
-            const columnDef = ASSET_COLUMNS.find(c => c.key === condition.column);
-            if (!columnDef) return null; // Skip if column not found
-            
-            const columnLabel = columnDef.label;
-            const operatorText = condition.operator ? OPERATOR_TEXT_MAP[condition.operator] : '';
-
-            if (columnDef.type === 'string' && condition.conditionText) {
-                return `${columnLabel} ${operatorText} "${condition.conditionText}"`;
-            }
-
-            if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
-                 if (operatorText) {
-                    return `${columnLabel} ${operatorText} "${condition.value}"`;
-                }
-            }
-
-            return null; // Should not happen with validation
-        }).filter(Boolean).join(` ${rule.logicalOperator} `);
-        
-        if (!conditionsString) return '';
-
-        const outcome = rule.ruleType === 'REPAIR' 
-            ? `then recommend: "${rule.recommendationText}"` 
-            : `then remaining life is: "${rule.lifeExpectancy}"`;
-
-        return `If (${conditionsString}), ${outcome}`;
-      };
-
       const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
       
       const result = await recommendRepairsForAllAssets({
@@ -498,6 +499,60 @@ export function DashboardClient() {
       });
     } finally {
       setIsGenerating(false);
+    }
+  };
+  
+  const handleRunSingleRecommendation = async (asset: AssetWithRecommendation) => {
+    setGeneratingAssetId(asset.assetId);
+    try {
+        const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
+        
+        const result = await recommendRepairsForAllAssets({
+            assets: [asset],
+            rules: rulesString,
+        });
+
+        if (result.errors && result.errors.length > 0) {
+            result.errors.forEach(error => {
+                toast({
+                    variant: 'destructive',
+                    title: `Asset ${error.assetId} Failed`,
+                    description: `Could not generate recommendation: ${error.message}`,
+                });
+            });
+        }
+
+        if (result.recommendations && result.recommendations.length > 0) {
+            const rec = result.recommendations[0];
+            setAssets(prevAssets => 
+                prevAssets.map(a => 
+                    a.assetId === rec.assetId 
+                    ? { 
+                        ...a, 
+                        recommendation: rec.recommendation, 
+                        estimatedRemainingLife: rec.estimatedRemainingLife,
+                        aiEstimatedCost: undefined,
+                        userVerifiedCost: undefined,
+                        needsPrice: false,
+                        costBreakdown: [],
+                      } 
+                    : a
+                )
+            );
+            toast({
+                title: "Recommendation Generated",
+                description: `Successfully generated recommendation for asset ${rec.assetId}.`,
+            });
+        }
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: "destructive",
+            title: `Asset ${asset.assetId} Failed`,
+            description: "An unexpected error occurred while generating the recommendation.",
+        });
+    } finally {
+        setGeneratingAssetId(null);
     }
   };
 
@@ -835,62 +890,22 @@ export function DashboardClient() {
 
   const handleExportData = () => {
     // 1. Prepare Asset Data in the correct order and format
-    const assetExportData = processedAssets.map(asset => ({
-        'Asset ID': asset.assetId,
-        'Address': asset.address,
-        'Year Installed': asset.yearInstalled,
-        'Material': asset.material,
-        'System Type': asset.systemType,
-        'Sub-Type': asset.assetSubType,
-        'Setback Water (m)': asset.setbackFromWaterSource,
-        'Setback House (m)': asset.setbackFromHouse,
-        'Bury Depth (m)': asset.tankBuryDepth,
-        'Opening Size (m)': asset.openingSize,
-        'Collar Height (m)': asset.aboveGroundCollarHeight,
-        'Site Condition': asset.siteCondition,
-        'Cover Condition': asset.coverCondition,
-        'Collar Condition': asset.collarCondition,
-        'Interior Condition': asset.interiorCondition,
-        'Overall Condition': asset.overallCondition,
-        'Abandoned / Not in Use?': asset.abandoned,
-        'Field Notes': asset.fieldNotes,
-        'Est. Remaining Life': asset.estimatedRemainingLife,
-        'AI Recommendation': Array.isArray(asset.recommendation) ? asset.recommendation.join(', ') : asset.recommendation,
-        'User Recommendation': Array.isArray(asset.userRecommendation) ? asset.userRecommendation.join(', ') : asset.userRecommendation,
-        'AI Est. Cost': asset.aiEstimatedCost,
-        'User Verified Cost': asset.userVerifiedCost,
-    }));
-
-    const createRuleString = (rule: Rule) => {
-        if (!rule.conditions || rule.conditions.length === 0) return '';
-        const conditionsString = rule.conditions.map((condition: Condition) => {
-            const columnDef = ASSET_COLUMNS.find(c => c.key === condition.column);
-            if (!columnDef) return null; // Skip if column not found
-            
-            const columnLabel = columnDef.label;
-            const operatorText = condition.operator ? OPERATOR_TEXT_MAP[condition.operator] : '';
-
-            if (columnDef.type === 'string' && columnDef.key !== 'yearInstalled') {
-                return `${columnLabel} contains "${condition.conditionText}"`;
-            }
-
-            if ((columnDef.type === 'number' || columnDef.type === 'enum' || columnDef.key === 'yearInstalled') && condition.value !== undefined) {
-                 if (operatorText) {
-                    return `${columnLabel} ${operatorText} "${condition.value}"`;
+    const assetExportData = processedAssets.map(asset => {
+        const orderedAsset: Record<string, any> = {};
+        ALL_COLUMNS.forEach(column => {
+            if (column.key !== 'actions') {
+                const key = column.key as keyof AssetWithRecommendation;
+                const value = asset[key];
+                // Use the column label as the header in the Excel file
+                if (Array.isArray(value)) {
+                    orderedAsset[column.label] = value.join(', ');
+                } else {
+                    orderedAsset[column.label] = value;
                 }
             }
-
-            return null; // Should not happen with validation
-        }).filter(Boolean).join(` ${rule.logicalOperator} `);
-        
-        if (!conditionsString) return '';
-
-        const outcome = rule.ruleType === 'REPAIR' 
-            ? `then recommend: "${rule.recommendationText}"` 
-            : `then remaining life is: "${rule.lifeExpectancy}"`;
-
-        return `If (${conditionsString}), ${outcome}`;
-      };
+        });
+        return orderedAsset;
+    });
 
     // 2. Prepare Rules Data
     const rulesExportData = rules.map(rule => {
@@ -934,6 +949,16 @@ export function DashboardClient() {
     if (key === 'actions') {
       return (
         <div className="flex items-center justify-end gap-2">
+            <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => handleRunSingleRecommendation(asset)}
+                disabled={isGenerating || generatingAssetId === asset.assetId}
+                title="Run AI Recommendation"
+            >
+                {generatingAssetId === asset.assetId ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                <span className="sr-only">Run AI Recommendation</span>
+            </Button>
             <AlertDialog open={assetToDelete?.assetId === asset.assetId} onOpenChange={(isOpen) => !isOpen && setAssetToDelete(null)}>
                 <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setAssetToDelete(asset)}>
