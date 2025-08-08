@@ -805,7 +805,7 @@ export function DashboardClient() {
              yearInstalled = String(yearInstalledRaw);
           }
           
-          const asset = {
+          const asset: Partial<AssetWithRecommendation> = {
               assetId: String(row.assetId),
               address: String(row.address ?? ''),
               yearInstalled: yearInstalled,
@@ -824,18 +824,28 @@ export function DashboardClient() {
               overallCondition: parseConditionValue(row.overallCondition),
               abandoned: String(row.abandoned ?? '').trim().toLowerCase() === 'yes' ? 'Yes' : 'No',
               fieldNotes: String(row.fieldNotes ?? ''),
-          };
-
-           return {
-              ...asset,
               recommendation: undefined,
-              userRecommendation: undefined,
               aiEstimatedCost: undefined,
-              userVerifiedCost: undefined,
               needsPrice: false,
               estimatedRemainingLife: undefined,
               costBreakdown: [],
           };
+          
+          // Optionally add user recommendations and costs
+          if (row.userRecommendation) {
+              asset.userRecommendation = String(row.userRecommendation).split(',').map(s => s.trim()).filter(Boolean);
+          } else {
+              asset.userRecommendation = undefined;
+          }
+
+          if (row.userVerifiedCost) {
+              const cost = parseFloat(row.userVerifiedCost);
+              asset.userVerifiedCost = isNaN(cost) ? undefined : cost;
+          } else {
+              asset.userVerifiedCost = undefined;
+          }
+
+           return asset as AssetWithRecommendation;
         }).filter((asset): asset is AssetWithRecommendation => asset !== null);
 
         if (newAssets.length === 0) {
@@ -919,11 +929,14 @@ export function DashboardClient() {
     const assetExportData = processedAssets.map(asset => {
         const orderedAsset: Record<string, any> = {};
         EXPORT_COLUMNS.forEach(key => {
-            const value = asset[key];
-             if (Array.isArray(value)) {
-                orderedAsset[key] = value.join(', ');
-            } else {
-                orderedAsset[key] = value;
+            const colDef = ALL_COLUMNS.find(c => c.key === key);
+            if (colDef) {
+                 const value = asset[colDef.key as keyof AssetWithRecommendation];
+                 if (Array.isArray(value)) {
+                    orderedAsset[colDef.key] = value.join(', ');
+                } else {
+                    orderedAsset[colDef.key] = value;
+                }
             }
         });
         return orderedAsset;
@@ -1308,6 +1321,11 @@ export function DashboardClient() {
                   <h4 className="font-semibold mb-2">Required Columns:</h4>
                   <ul className="grid grid-cols-2 gap-x-8 gap-y-1 list-disc list-inside text-sm text-muted-foreground bg-muted p-4 rounded-md">
                     {REQUIRED_UPLOAD_COLUMNS.map(col => <li key={col}><code className="font-mono">{col}</code></li>)}
+                  </ul>
+                  <h4 className="font-semibold mt-4 mb-2">Optional Columns:</h4>
+                   <ul className="grid grid-cols-2 gap-x-8 gap-y-1 list-disc list-inside text-sm text-muted-foreground bg-muted p-4 rounded-md">
+                    <li><code className="font-mono">userRecommendation</code></li>
+                    <li><code className="font-mono">userVerifiedCost</code></li>
                   </ul>
                 </div>
                 <DialogFooter>
