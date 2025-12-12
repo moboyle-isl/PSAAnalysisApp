@@ -529,10 +529,19 @@ export function DashboardClient() {
     }
   };
   
-  const convertAssetToStrings = (asset: AssetWithRecommendation) => {
-    return Object.fromEntries(
-        Object.entries(asset).map(([key, value]) => [key, String(value ?? '')])
-    ) as unknown as Asset;
+  const convertAssetToStrings = (asset: AssetWithRecommendation): Asset => {
+    const stringifiedAsset: Record<string, string> = {};
+    for (const key in asset) {
+        if (Object.prototype.hasOwnProperty.call(asset, key)) {
+            const value = (asset as any)[key];
+             if (Array.isArray(value)) {
+                stringifiedAsset[key] = value.join(', ');
+            } else {
+                stringifiedAsset[key] = String(value ?? '');
+            }
+        }
+    }
+    return stringifiedAsset as unknown as Asset;
   }
   
   const handleRunSingleRecommendation = async (asset: AssetWithRecommendation) => {
@@ -654,7 +663,7 @@ export function DashboardClient() {
     setGeneratingCostAssetId(asset.assetId);
     try {
       const result = await generateCostsForRecommendations({
-        assets: [{ assetId: asset.assetId, userRecommendation: asset.userRecommendation }],
+        assets: [{ assetId: asset.assetId, userRecommendation: asset.userRecommendation || [] }],
         repairPrices: repairPrices,
       });
 
