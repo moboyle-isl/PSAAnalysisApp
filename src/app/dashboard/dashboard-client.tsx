@@ -652,8 +652,6 @@ export function DashboardClient() {
         repairPrices: repairPrices,
       });
 
-      // The AI might return an empty `costs` array if no priced repairs were found.
-      // We need to handle this case to update the UI correctly.
       if (result.costs && result.costs.length > 0) {
         const costInfo = result.costs[0];
         setAssets(prevAssets =>
@@ -669,15 +667,14 @@ export function DashboardClient() {
           )
         );
       } else {
-        // If the costs array is empty, it means no priced repairs were found.
-        // Update the asset to reflect this.
+        // This case handles when no priced repairs were found.
         setAssets(prevAssets =>
           prevAssets.map(a =>
             a.assetId === asset.assetId
               ? {
                 ...a,
                 aiEstimatedCost: 0,
-                needsPrice: true, // Flag that a price is needed for one of the items.
+                needsPrice: true, // Flag that a price is needed for one or more items.
                 costBreakdown: [],
               }
               : a
@@ -898,7 +895,6 @@ export function DashboardClient() {
               costBreakdown: [],
           };
           
-          // Optionally add user recommendations and costs
           if (row.userRecommendation) {
               asset.userRecommendation = String(row.userRecommendation).split(',').map(s => s.trim()).filter(Boolean);
           } else {
@@ -984,7 +980,6 @@ export function DashboardClient() {
         });
     }
     
-    // Reset file input to allow re-uploading the same file
     if (event.target) {
         event.target.value = '';
     }
@@ -992,26 +987,21 @@ export function DashboardClient() {
 
 
   const handleExportData = () => {
-    // 1. Prepare Asset Data in the correct order and format
     const assetExportData = processedAssets.map(asset => {
         const orderedAsset: Record<string, any> = {};
         EXPORT_COLUMNS.forEach(key => {
-            const colDef = ALL_COLUMNS.find(c => c.key === key);
-            if (colDef) {
-                 const value = asset[colDef.key as keyof AssetWithRecommendation];
-                 if (Array.isArray(value)) {
-                    orderedAsset[colDef.key] = value.join(', ');
-                } else if (value !== undefined && value !== null) {
-                    orderedAsset[colDef.key] = value;
-                } else {
-                    orderedAsset[colDef.key] = '';
-                }
+            const value = asset[key as keyof AssetWithRecommendation];
+            if (Array.isArray(value)) {
+                orderedAsset[key] = value.join(', ');
+            } else if (value !== undefined && value !== null) {
+                orderedAsset[key] = value;
+            } else {
+                orderedAsset[key] = '';
             }
         });
         return orderedAsset;
     });
 
-    // 2. Prepare Rules Data
     const rulesExportData = rules.map(rule => {
         return {
             'Rule ID': rule.id,
@@ -1019,25 +1009,21 @@ export function DashboardClient() {
         }
     });
 
-    // 3. Prepare Pricing Data (already flat)
     const pricingExportData = repairPrices.map(price => ({
         'Repair Type': price.repairType,
         'Unit Price': price.unitPrice,
         'Description': price.description,
     }));
     
-    // 4. Create worksheets
     const assetWorksheet = XLSX.utils.json_to_sheet(assetExportData);
     const rulesWorksheet = XLSX.utils.json_to_sheet(rulesExportData);
     const pricingWorksheet = XLSX.utils.json_to_sheet(pricingExportData);
 
-    // 5. Create workbook and append sheets
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, assetWorksheet, 'Asset Data');
     XLSX.utils.book_append_sheet(workbook, rulesWorksheet, 'Configured Rules');
     XLSX.utils.book_append_sheet(workbook, pricingWorksheet, 'Unit Pricing');
 
-    // 6. Write file and trigger download
     XLSX.writeFile(workbook, 'project_export.xlsx');
 
     toast({
