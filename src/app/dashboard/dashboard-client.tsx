@@ -529,13 +529,19 @@ export function DashboardClient() {
     }
   };
   
+  const convertAssetToStrings = (asset: AssetWithRecommendation) => {
+    return Object.fromEntries(
+        Object.entries(asset).map(([key, value]) => [key, String(value ?? '')])
+    ) as unknown as Asset;
+  }
+  
   const handleRunSingleRecommendation = async (asset: AssetWithRecommendation) => {
     setGeneratingAssetId(asset.assetId);
     try {
         const rulesString = rules.map(createRuleString).filter(Boolean).join('\n');
         
         const result = await recommendRepairsForAllAssets({
-            assets: [asset],
+            assets: [convertAssetToStrings(asset)],
             rules: rulesString,
         });
 
