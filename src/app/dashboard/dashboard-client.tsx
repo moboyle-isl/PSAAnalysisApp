@@ -667,35 +667,37 @@ export function DashboardClient() {
         repairPrices: repairPrices,
       });
 
-      if (result.costs && result.costs.length > 0) {
-        const costInfo = result.costs[0];
-        setAssets(prevAssets =>
-          prevAssets.map(a =>
-            a.assetId === costInfo.assetId
-              ? {
-                ...a,
+      const costsMap = new Map(
+        result.costs.map((c) => [c.assetId, {
+          aiEstimatedCost: c.estimatedCost,
+          needsPrice: c.needsPrice,
+          costBreakdown: c.costBreakdown,
+        }])
+      );
+
+      setAssets((prevAssets) =>
+        prevAssets.map((a) => {
+          const costInfo = costsMap.get(a.assetId);
+          if (costInfo) {
+            return { 
+                ...a, 
                 aiEstimatedCost: costInfo.aiEstimatedCost,
                 needsPrice: costInfo.needsPrice,
                 costBreakdown: costInfo.costBreakdown,
-              }
-              : a
-          )
-        );
-      } else {
-        // This case handles when no priced repairs were found.
-        setAssets(prevAssets =>
-          prevAssets.map(a =>
-            a.assetId === asset.assetId
-              ? {
-                ...a,
-                aiEstimatedCost: 0,
-                needsPrice: true, // Flag that a price is needed for one or more items.
-                costBreakdown: [],
-              }
-              : a
-          )
-        );
-      }
+            };
+          }
+          // Handle case where single asset cost returns empty (no priced repairs)
+          if (a.assetId === asset.assetId && !costInfo) {
+            return {
+              ...a,
+              aiEstimatedCost: 0,
+              needsPrice: true, 
+              costBreakdown: [],
+            }
+          }
+          return a;
+        })
+      );
       
       toast({
           title: "Cost Generated",
